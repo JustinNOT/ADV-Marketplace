@@ -1,0 +1,38 @@
+site:
+  name: "AdVehicles Marketplace"
+  defaultCountry: "Canada"
+
+validation:
+  minYear: 1990
+  maxYear: 2026
+  minMonthlyRate: 0
+  defaultMonthlyRate: 50
+  minSeats: 1
+  maxSeats: 9
+
+listings:
+  sortOptions:
+    - { label: "Latest", value: "latest:desc" }
+    - { label: "City (A→Z)", value: "city:asc" }
+    - { label: "Mileage (High→Low)", value: "mileage:desc" }
+    - { label: "Rate (Low→High)", value: "rate:asc" }
+    - { label: "Year (New→Old)", value: "year:desc" }
+
+adPlacements:
+  - "Rear Window"
+  - "Side Doors"
+  - "Hood"
+  - "Full Wrap"
+  - "Roof"
+
+fields:
+  allowLocationTracking: true
+  socialLinks: true
+  color: true
+  seats: true
+  restrictions: true
+  vehicleCondition: true
+
+regions:
+  provinces: ["ON", "BC", "AB", "QC"]
+  cities: ["Toronto", "Mississauga", "Oakville", "Burlington", "Hamilton"]

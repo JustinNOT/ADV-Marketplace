@@ -18,23 +18,24 @@
   <main class="container">
     <section class="form-card">
       <h2>Driver Submission</h2>
-      <p>Fill in as much detail as possible. You can always edit later in the MVP phase by resubmitting.</p>
+      <p>Upload a clear photo of your vehicle. Max 5MB, image files only.</p>
 
-      <form id="driverForm">
+      <!-- IMPORTANT: enctype for file upload -->
+      <form id="driverForm" enctype="multipart/form-data">
         <fieldset>
           <legend>Contact</legend>
           <div class="grid-2">
             <div class="field">
               <label for="name">Full Name *</label>
-              <input id="name" required />
+              <input id="name" name="name" required />
             </div>
             <div class="field">
               <label for="email">Email *</label>
-              <input id="email" type="email" required />
+              <input id="email" name="email" type="email" required />
             </div>
             <div class="field">
               <label for="phone">Phone</label>
-              <input id="phone" />
+              <input id="phone" name="phone" />
             </div>
           </div>
         </fieldset>
@@ -44,19 +45,19 @@
           <div class="grid-3">
             <div class="field">
               <label for="city">City *</label>
-              <input id="city" required />
+              <input id="city" name="city" required />
             </div>
             <div class="field">
               <label for="province">Province/State *</label>
-              <input id="province" required />
+              <input id="province" name="province" required />
             </div>
             <div class="field">
               <label for="country">Country *</label>
-              <input id="country" required value="Canada" />
+              <input id="country" name="country" required value="Canada" />
             </div>
             <div class="field">
               <label for="postalCode">Postal Code</label>
-              <input id="postalCode" />
+              <input id="postalCode" name="postalCode" />
             </div>
           </div>
         </fieldset>
@@ -66,27 +67,27 @@
           <div class="grid-3">
             <div class="field">
               <label for="carMake">Make *</label>
-              <input id="carMake" required />
+              <input id="carMake" name="carMake" required />
             </div>
             <div class="field">
               <label for="carModel">Model *</label>
-              <input id="carModel" required />
+              <input id="carModel" name="carModel" required />
             </div>
             <div class="field">
               <label for="carYear">Year *</label>
-              <input id="carYear" type="number" min="1990" required />
+              <input id="carYear" name="carYear" type="number" min="1990" required />
             </div>
             <div class="field">
               <label for="color">Color</label>
-              <input id="color" />
+              <input id="color" name="color" />
             </div>
             <div class="field">
               <label for="seats">Seats</label>
-              <input id="seats" type="number" min="1" max="9" value="5" />
+              <input id="seats" name="seats" type="number" min="1" max="9" value="5" />
             </div>
             <div class="field">
-              <label for="imageUrl">Photo URL</label>
-              <input id="imageUrl" placeholder="https://..." />
+              <label for="image">Photo (jpg/png, max 5MB)</label>
+              <input id="image" name="image" type="file" accept="image/*" />
             </div>
           </div>
         </fieldset>
@@ -96,24 +97,24 @@
           <div class="grid-3">
             <div class="field">
               <label for="weeklyMileage">Weekly Mileage *</label>
-              <input id="weeklyMileage" type="number" min="0" required />
+              <input id="weeklyMileage" name="weeklyMileage" type="number" min="0" required />
             </div>
             <div class="field">
               <label for="avgDailyDrivingHours">Avg Daily Driving Hours</label>
-              <input id="avgDailyDrivingHours" type="number" min="0" step="0.1" />
+              <input id="avgDailyDrivingHours" name="avgDailyDrivingHours" type="number" min="0" step="0.1" />
             </div>
             <div class="field">
               <label for="monthlyRate">Monthly Rate ($)</label>
-              <input id="monthlyRate" type="number" min="0" value="50" />
+              <input id="monthlyRate" name="monthlyRate" type="number" min="0" value="50" />
             </div>
           </div>
           <div class="field">
             <label for="typicalRoutes">Typical Routes</label>
-            <textarea id="typicalRoutes" rows="2" placeholder="Major roads, neighborhoods, commute pattern"></textarea>
+            <textarea id="typicalRoutes" name="typicalRoutes" rows="2" placeholder="Major roads, neighborhoods, commute pattern"></textarea>
           </div>
           <div class="field">
             <label for="availability">Availability</label>
-            <textarea id="availability" rows="2" placeholder="Install windows, preferred times"></textarea>
+            <textarea id="availability" name="availability" rows="2" placeholder="Install windows, preferred times"></textarea>
           </div>
         </fieldset>
 
@@ -122,7 +123,8 @@
           <div class="grid-3">
             <div class="field checkbox-group">
               <label>Ad Placement Options</label>
-              <div>
+              <div id="placementOptions">
+                <!-- If you aren't using config.js, keep these five lines: -->
                 <label><input type="checkbox" name="placement" value="Rear Window" /> Rear Window</label>
                 <label><input type="checkbox" name="placement" value="Side Doors" /> Side Doors</label>
                 <label><input type="checkbox" name="placement" value="Hood" /> Hood</label>
@@ -132,14 +134,14 @@
             </div>
             <div class="field">
               <label for="vehicleCondition">Vehicle Condition</label>
-              <input id="vehicleCondition" placeholder="Non-smoking, clean, dents, etc." />
+              <input id="vehicleCondition" name="vehicleCondition" placeholder="Non-smoking, clean, dents, etc." />
             </div>
             <div class="field">
               <label for="restrictions">Ad Restrictions</label>
-              <input id="restrictions" placeholder="e.g., no adult/political/cannabis" />
+              <input id="restrictions" name="restrictions" placeholder="e.g., no adult/political/cannabis" />
             </div>
             <div class="field checkbox-inline">
-              <label><input id="allowLocationTracking" type="checkbox" /> Allow anonymous mileage/location tracking</label>
+              <label><input id="allowLocationTracking" name="allowLocationTracking" type="checkbox" /> Allow anonymous mileage/location tracking</label>
             </div>
           </div>
         </fieldset>
@@ -149,16 +151,16 @@
           <div class="grid-2">
             <div class="field">
               <label for="ig">Instagram</label>
-              <input id="ig" placeholder="username or URL" />
+              <input id="ig" name="ig" placeholder="username or URL" />
             </div>
             <div class="field">
               <label for="tiktok">TikTok</label>
-              <input id="tiktok" placeholder="username or URL" />
+              <input id="tiktok" name="tiktok" placeholder="username or URL" />
             </div>
           </div>
           <div class="field">
             <label for="notes">Notes</label>
-            <textarea id="notes" rows="2" placeholder="Anything else clients should know"></textarea>
+            <textarea id="notes" name="notes" rows="2" placeholder="Anything else clients should know"></textarea>
           </div>
         </fieldset>
 
@@ -174,6 +176,7 @@
     <p>© 2025 AdVehicles</p>
   </footer>
 
+  <script src="/js/config.js"></script>
   <script src="/js/submit.js"></script>
 </body>
 </html>

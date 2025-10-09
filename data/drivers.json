@@ -16,8 +16,8 @@
     "seats": 5,
     "weeklyMileage": 320,
     "avgDailyDrivingHours": 2.5,
-    "typicalRoutes": "Gardiner Expy \u21c4 DVP; Downtown (King/Spadina) deliveries; weekend errands Etobicoke",
-    "availability": "Mon\u2013Fri 7am\u201310am, 4pm\u20137pm; Sat 10am\u20133pm",
+    "typicalRoutes": "Gardiner Expy ⇄ DVP; Downtown (King/Spadina) deliveries; weekend errands Etobicoke",
+    "availability": "Mon–Fri 7am–10am, 4pm–7pm; Sat 10am–3pm",
     "adPlacementOptions": [
       "Rear Window",
       "Side Doors",
@@ -52,7 +52,7 @@
     "weeklyMileage": 450,
     "avgDailyDrivingHours": 3.2,
     "typicalRoutes": "Hurontario, Square One area, 401 to Toronto 3x/week",
-    "availability": "Mon\u2013Sun flexible; prefers morning installs",
+    "availability": "Mon–Sun flexible; prefers morning installs",
     "adPlacementOptions": [
       "Rear Window",
       "Side Doors",
@@ -68,5 +68,42 @@
       "tiktok": ""
     },
     "notes": "Open to LED lightbox in rear window if provided."
+  },
+  {
+    "id": "drv_tjU4iHqF",
+    "createdAt": "2025-10-09T18:06:46.184Z",
+    "name": "Justin Tan",
+    "email": "2justintan@gmail.com",
+    "phone": "4379851880",
+    "city": "Oakville",
+    "province": "Ontario",
+    "country": "Canada",
+    "postalCode": "L6M 3C4",
+    "carMake": "VW",
+    "carModel": "Tiguan",
+    "carYear": 2014,
+    "color": "White",
+    "seats": 5,
+    "weeklyMileage": 100,
+    "avgDailyDrivingHours": 2,
+    "typicalRoutes": "Major Roads, 401",
+    "availability": "Anytime, Anywhere",
+    "adPlacementOptions": [
+      "Rear Window",
+      "Side Doors",
+      "Hood",
+      "Full Wrap",
+      "Roof"
+    ],
+    "vehicleCondition": "Good Outside Condition",
+    "restrictions": "Safe for Work",
+    "allowLocationTracking": false,
+    "monthlyRate": 50,
+    "imageUrl": "",
+    "socialLinks": {
+      "instagram": "",
+      "tiktok": ""
+    },
+    "notes": ""
   }
 ]

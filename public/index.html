@@ -63,23 +63,12 @@
         </div>
         <div class="field">
           <label for="fPlacement">Ad Placement</label>
-          <select id="fPlacement">
-            <option value="">Any</option>
-            <option value="rear window">Rear Window</option>
-            <option value="side">Side Doors</option>
-            <option value="hood">Hood</option>
-            <option value="full wrap">Full Wrap</option>
-            <option value="roof">Roof</option>
-          </select>
+          <select id="fPlacement"><option value="">Any</option></select>
         </div>
         <div class="field">
           <label for="fSort">Sort</label>
           <select id="fSort">
-            <option value="latest:desc">Latest</option>
-            <option value="city:asc">City (A→Z)</option>
-            <option value="mileage:desc">Mileage (High→Low)</option>
-            <option value="rate:asc">Rate (Low→High)</option>
-            <option value="year:desc">Year (New→Old)</option>
+            <!-- filled from /api/config -->
           </select>
         </div>
       </div>
@@ -100,6 +89,7 @@
     <p>© 2025 AdVehicles</p>
   </footer>
 
+  <script src="/js/config.js"></script>
   <script src="/js/listings.js"></script>
 </body>
 </html>
