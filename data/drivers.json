@@ -1,0 +1,72 @@
+[
+  {
+    "id": "drv_demo1",
+    "createdAt": "2025-10-09T12:00:00.000Z",
+    "name": "Alex Chan",
+    "email": "alex.chan@example.com",
+    "phone": "+1-416-555-1234",
+    "city": "Toronto",
+    "province": "ON",
+    "country": "Canada",
+    "postalCode": "M5V 2T6",
+    "carMake": "Toyota",
+    "carModel": "Corolla",
+    "carYear": 2018,
+    "color": "Silver",
+    "seats": 5,
+    "weeklyMileage": 320,
+    "avgDailyDrivingHours": 2.5,
+    "typicalRoutes": "Gardiner Expy \u21c4 DVP; Downtown (King/Spadina) deliveries; weekend errands Etobicoke",
+    "availability": "Mon\u2013Fri 7am\u201310am, 4pm\u20137pm; Sat 10am\u20133pm",
+    "adPlacementOptions": [
+      "Rear Window",
+      "Side Doors",
+      "Hood"
+    ],
+    "vehicleCondition": "Clean, non-smoking, no major dents",
+    "restrictions": "No adult content; no political ads",
+    "allowLocationTracking": false,
+    "monthlyRate": 50,
+    "imageUrl": "",
+    "socialLinks": {
+      "instagram": "",
+      "tiktok": ""
+    },
+    "notes": "Comfortable with adhesive decals."
+  },
+  {
+    "id": "drv_demo2",
+    "createdAt": "2025-10-08T15:00:00.000Z",
+    "name": "Priya Singh",
+    "email": "priya.singh@example.com",
+    "phone": "+1-647-555-9876",
+    "city": "Mississauga",
+    "province": "ON",
+    "country": "Canada",
+    "postalCode": "L5B 3Y3",
+    "carMake": "Honda",
+    "carModel": "Civic",
+    "carYear": 2021,
+    "color": "Blue",
+    "seats": 5,
+    "weeklyMileage": 450,
+    "avgDailyDrivingHours": 3.2,
+    "typicalRoutes": "Hurontario, Square One area, 401 to Toronto 3x/week",
+    "availability": "Mon\u2013Sun flexible; prefers morning installs",
+    "adPlacementOptions": [
+      "Rear Window",
+      "Side Doors",
+      "Full Wrap"
+    ],
+    "vehicleCondition": "Excellent, non-smoking",
+    "restrictions": "No cannabis or vaping products",
+    "allowLocationTracking": true,
+    "monthlyRate": 65,
+    "imageUrl": "",
+    "socialLinks": {
+      "instagram": "",
+      "tiktok": ""
+    },
+    "notes": "Open to LED lightbox in rear window if provided."
+  }
+]
