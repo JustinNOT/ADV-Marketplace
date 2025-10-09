@@ -105,5 +105,78 @@
       "tiktok": ""
     },
     "notes": ""
+  },
+  {
+    "id": "drv_lxTs4Hzx",
+    "createdAt": "2025-10-09T19:40:25.755Z",
+    "status": "approved",
+    "name": "Vikram Ganesh",
+    "email": "wasdwasdwasdwasd05@gmail.com",
+    "phone": "4379851880",
+    "city": "Oakville",
+    "province": "Ontario",
+    "country": "Canada",
+    "postalCode": "",
+    "carMake": "KIA",
+    "carModel": "X",
+    "carYear": 2020,
+    "color": "Red",
+    "seats": 5,
+    "weeklyMileage": 300,
+    "avgDailyDrivingHours": 3,
+    "typicalRoutes": "Major Roads + Local Communities",
+    "availability": "All",
+    "adPlacementOptions": [
+      "Rear Window",
+      "Side Doors",
+      "Hood",
+      "Full Wrap",
+      "Roof"
+    ],
+    "vehicleCondition": "Good Outside Condition",
+    "restrictions": "Safe for Work",
+    "allowLocationTracking": true,
+    "monthlyRate": 50,
+    "imageUrl": "/uploads/img_6eYuYQFOD1.jpg",
+    "socialLinks": {
+      "instagram": "",
+      "tiktok": ""
+    },
+    "notes": "",
+    "approvedAt": "2025-10-09T19:40:41.635Z"
+  },
+  {
+    "id": "drv_Zmt6rhI8",
+    "createdAt": "2025-10-09T23:09:19.800Z",
+    "status": "approved",
+    "name": "Arnav Khanna",
+    "email": "wasdwasdwasdwasd05@gmail.com",
+    "phone": "4379851880",
+    "city": "Test",
+    "province": "City",
+    "country": "Canada",
+    "postalCode": "",
+    "carMake": "Hi",
+    "carModel": "X",
+    "carYear": 2020,
+    "color": "",
+    "seats": 5,
+    "weeklyMileage": 300,
+    "avgDailyDrivingHours": 0,
+    "typicalRoutes": "",
+    "availability": "",
+    "adPlacementOptions": [],
+    "vehicleCondition": "",
+    "restrictions": "",
+    "allowLocationTracking": false,
+    "monthlyRate": 50,
+    "imageUrl": "",
+    "socialLinks": {
+      "instagram": "",
+      "tiktok": ""
+    },
+    "notes": "",
+    "otherCities": [],
+    "approvedAt": "2025-10-09T23:09:26.548Z"
   }
 ]

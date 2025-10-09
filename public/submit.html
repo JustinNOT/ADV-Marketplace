@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AdVehicles Marketplace — Driver Sign Up</title>
+  <title>AdVehicles — Driver Sign Up</title>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
 <body>
@@ -20,7 +20,6 @@
       <h2>Driver Submission</h2>
       <p>Upload a clear photo of your vehicle. Max 5MB, image files only.</p>
 
-      <!-- IMPORTANT: enctype for file upload -->
       <form id="driverForm" enctype="multipart/form-data">
         <fieldset>
           <legend>Contact</legend>
@@ -58,6 +57,10 @@
             <div class="field">
               <label for="postalCode">Postal Code</label>
               <input id="postalCode" name="postalCode" />
+            </div>
+            <div class="field">
+              <label for="otherCities">Also visits (other cities)</label>
+              <input id="otherCities" name="otherCities" placeholder="Comma-separated e.g., Mississauga, Toronto, Hamilton" />
             </div>
           </div>
         </fieldset>
@@ -124,12 +127,10 @@
             <div class="field checkbox-group">
               <label>Ad Placement Options</label>
               <div id="placementOptions">
-                <!-- If you aren't using config.js, keep these five lines: -->
                 <label><input type="checkbox" name="placement" value="Rear Window" /> Rear Window</label>
                 <label><input type="checkbox" name="placement" value="Side Doors" /> Side Doors</label>
                 <label><input type="checkbox" name="placement" value="Hood" /> Hood</label>
-                <label><input type="checkbox" name="placement" value="Full Wrap" /> Full Wrap</label>
-                <label><input type="checkbox" name="placement" value="Roof" /> Roof</label>
+                <!-- Removed: Full Wrap, Roof -->
               </div>
             </div>
             <div class="field">
@@ -173,10 +174,9 @@
   </main>
 
   <footer class="site-footer">
-    <p>© 2025 AdVehicles</p>
+    <p>© 2025 AdVehicles • <a href="/privacy.html">Privacy</a> • <a href="/terms.html">Terms</a> • <a href="/admin.html">Admin</a></p>
   </footer>
 
-  <script src="/js/config.js"></script>
   <script src="/js/submit.js"></script>
 </body>
 </html>

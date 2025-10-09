@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AdVehicles — Admin</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+  <style>
+    .admin-wrap{max-width:1100px;margin:24px auto;padding:0 16px;}
+    .login{display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap;}
+    .inline{display:inline-flex;gap:6px;align-items:center;}
+    .hidden{display:none;}
+    table{width:100%;border-collapse:collapse;background:#12141b;border:1px solid #262a36;border-radius:12px;overflow:hidden;}
+    th,td{padding:10px;border-bottom:1px solid #262a36;vertical-align:top;}
+    th{background:#0f1118;text-align:left;color:#A9B0BF;font-weight:600;}
+    tbody tr:hover{background:#0f1118;}
+    img.thumb{width:110px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #262a36;}
+    .pill{font-size:12px;padding:3px 8px;border-radius:999px;background:#0f1118;border:1px solid #262a36;color:#A9B0BF;}
+    .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0;}
+    .danger{border-color:#5b1f1f;background:transparent;color:#ffb4b4}
+    .muted{color:#A9B0BF}
+    button{background:linear-gradient(90deg,#8AD6FF,#7CFFCB);border:0;color:#0a0a0a;border-radius:10px;padding:8px 12px;font-weight:600;cursor:pointer}
+    button.ghost{background:transparent;border:1px solid #262a36;color:#E6E6E6}
+    pre.diag{background:#0f1118;border:1px solid #262a36;border-radius:10px;padding:8px;overflow:auto;max-height:180px}
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <h1>AdVehicles — Admin</h1>
+    <nav>
+      <a href="/index.html">Browse</a>
+      <a href="/submit.html">Become a Driver</a>
+    </nav>
+  </header>
+
+  <main class="admin-wrap">
+    <div class="login">
+      <span class="muted">Admin login:</span>
+      <input id="u" type="text" placeholder="username" autocomplete="username">
+      <input id="p" type="password" placeholder="password" autocomplete="current-password">
+      <button id="loginBtn" type="button">Login</button>
+      <button id="logoutBtn" type="button" class="ghost">Logout</button>
+      <button id="verifyBtn" type="button" class="ghost">Verify Mailer</button>
+      <button id="testEmailBtn" type="button" class="ghost">Send Test Email</button>
+      <span id="loginStatus" class="muted"></span>
+    </div>
+    <div id="flash" class="muted" style="min-height:22px;margin-bottom:8px"></div>
+    <pre id="mailInfo" class="diag hidden"></pre>
+
+    <div id="panel" class="hidden">
+      <div class="toolbar">
+        <div class="inline">
+          <label class="muted">View:</label>
+          <select id="statusSel">
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+            <option value="all">All</option>
+          </select>
+          <button id="refreshBtn" type="button">Load</button>
+        </div>
+        <div class="inline">
+          <input id="q" type="text" placeholder="Search name, city, make…">
+          <button id="clearQ" type="button" class="ghost">Clear</button>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Photo</th>
+            <th>Driver & Vehicle</th>
+            <th>Location</th>
+            <th>Ad Options</th>
+            <th>Meta</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2025 AdVehicles • <a href="/privacy.html">Privacy</a> • <a href="/terms.html">Terms</a></p>
+  </footer>
+
+  <script src="/js/admin.js" defer></script>
+</body>
+</html>

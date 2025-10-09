@@ -1,26 +1,28 @@
 {
-  "name": "advehicles-marketplace-mvp",
-  "version": "0.1.0",
+  "name": "advehicles-marketplace",
+  "version": "1.0.0",
   "private": true,
-  "type": "commonjs",
+  "description": "AdVehicles Marketplace — simple Express app with admin, uploads, and email notifications.",
+  "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js",
+    "dev": "nodemon",
     "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
     "express": "^4.19.2",
     "express-rate-limit": "^8.1.0",
     "helmet": "^8.1.0",
-    "js-yaml": "^4.1.0",
     "multer": "^2.0.2",
-    "nanoid": "^5.0.7",
+    "nanoid": "^4.0.2",
+    "nodemailer": "^6.9.14",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "nodemon": "^3.1.10"
   },
-  "engines": {
-    "node": ">=18"
-  }
+  "license": "MIT"
 }

@@ -21,9 +21,7 @@
       <div class="filters-grid">
         <div class="field">
           <label for="fCity">City</label>
-          <select id="fCity">
-            <option value="">All</option>
-          </select>
+          <select id="fCity"><option value="">All</option></select>
         </div>
         <div class="field">
           <label for="fProvince">Province/State</label>
@@ -63,12 +61,21 @@
         </div>
         <div class="field">
           <label for="fPlacement">Ad Placement</label>
-          <select id="fPlacement"><option value="">Any</option></select>
+          <select id="fPlacement">
+            <option value="">Any</option>
+            <option value="Rear Window">Rear Window</option>
+            <option value="Side Doors">Side Doors</option>
+            <option value="Hood">Hood</option>
+          </select>
         </div>
         <div class="field">
           <label for="fSort">Sort</label>
           <select id="fSort">
-            <!-- filled from /api/config -->
+            <option value="latest:desc">Latest</option>
+            <option value="city:asc">City (A→Z)</option>
+            <option value="mileage:desc">Mileage (High→Low)</option>
+            <option value="rate:asc">Rate (Low→High)</option>
+            <option value="year:desc">Year (New→Old)</option>
           </select>
         </div>
       </div>
@@ -86,10 +93,9 @@
   </main>
 
   <footer class="site-footer">
-    <p>© 2025 AdVehicles</p>
+    <p>© 2025 AdVehicles • <a href="/privacy.html">Privacy</a> • <a href="/terms.html">Terms</a> • <a href="/admin.html">Admin</a></p>
   </footer>
 
-  <script src="/js/config.js"></script>
   <script src="/js/listings.js"></script>
 </body>
 </html>

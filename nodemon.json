@@ -1,0 +1,6 @@
+{
+  "watch": ["server.js", "public"],
+  "ignore": ["data/**", "uploads/**", "*.log"],
+  "ext": "js,mjs,cjs,html,css",
+  "exec": "node server.js"
+}
