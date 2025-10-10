@@ -158,3 +158,6 @@ button:hover, .btn:hover{ filter: brightness(1.05); }
 .card-actions{ margin-top: 8px; display: flex; gap: 8px; }
 
 .error{ color: #ffb4b4; padding: 12px; background: #2b1212; border: 1px solid #4c1f1f; border-radius: 12px; }
+
+/* driver-only pilot: hide admin link in footer (URL still works if known) */
+.site-footer a[href="/admin.html"] { display: none !important; }

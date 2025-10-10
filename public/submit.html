@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow">
   <title>AdVehicles — Driver Sign Up</title>
   <link rel="stylesheet" href="/css/styles.css" />
 </head>
@@ -21,6 +22,13 @@
       <p>Upload a clear photo of your vehicle. Max 5MB, image files only.</p>
 
       <form id="driverForm" enctype="multipart/form-data">
+        <!-- Honeypot: real users never see/touch this -->
+        <div style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">
+          <label>Leave this empty:
+            <input type="text" name="website" tabindex="-1" autocomplete="off">
+          </label>
+        </div>
+
         <fieldset>
           <legend>Contact</legend>
           <div class="grid-2">
@@ -130,7 +138,6 @@
                 <label><input type="checkbox" name="placement" value="Rear Window" /> Rear Window</label>
                 <label><input type="checkbox" name="placement" value="Side Doors" /> Side Doors</label>
                 <label><input type="checkbox" name="placement" value="Hood" /> Hood</label>
-                <!-- Removed: Full Wrap, Roof -->
               </div>
             </div>
             <div class="field">

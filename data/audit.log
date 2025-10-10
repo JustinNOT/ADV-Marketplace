@@ -27,3 +27,8 @@
 {"at":"2025-10-09T23:02:48.723Z","action":"delete","id":"drv_JWhHFszw"}
 {"at":"2025-10-09T23:09:19.804Z","action":"create","id":"drv_Zmt6rhI8","email":"wasdwasdwasdwasd05@gmail.com","status":"pending"}
 {"at":"2025-10-09T23:09:26.550Z","action":"approve","id":"drv_Zmt6rhI8"}
+{"at":"2025-10-10T15:49:47.545Z","action":"create","id":"drv_6nGbAIKi","email":"hateisworst@gmail.com","status":"pending"}
+{"at":"2025-10-10T15:51:52.123Z","action":"reject","id":"drv_6nGbAIKi"}
+{"at":"2025-10-10T15:51:54.843Z","action":"reject","id":"drv_Zmt6rhI8"}
+{"at":"2025-10-10T16:09:30.131Z","action":"create","id":"drv_N_JsSkB-","email":"test@example.com","status":"pending"}
+{"at":"2025-10-10T16:22:01.923Z","action":"create","id":"drv_P9DLpg6O","email":"pic@example.com","status":"pending"}

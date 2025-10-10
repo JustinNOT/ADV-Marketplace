@@ -1,5 +1,6 @@
 // server.js
 const express = require("express");
+const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
 const { nanoid } = require("nanoid");
@@ -22,6 +23,17 @@ app.set("trust proxy", 1);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
+// ---------- rate limit (global) ----------
+const isProd = process.env.NODE_ENV === "production";
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000,           // 60s window
+  max: isProd ? 300 : 10,        // prod=300/min; dev=10/min (easier to test)
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
+
+
 // ---------- paths & persistence ----------
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
@@ -35,6 +47,17 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(LEGACY_UPLOAD_DIR, { recursive: true });
 if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2), "utf8");
+
+// ---------- health probe ----------
+app.get("/healthz", (_req, res) => {
+  try {
+    fs.accessSync(DATA_DIR, fs.constants.W_OK);
+    return res.json({ ok: true });
+  } catch {
+    return res.status(500).json({ ok: false, error: "DATA_DIR not writable" });
+  }
+});
+
 
 // ---------- helpers ----------
 const readDrivers = () => JSON.parse(fs.readFileSync(DATA_FILE, "utf8") || "[]");
@@ -64,37 +87,79 @@ const upload = multer({
 app.use("/uploads", express.static(LEGACY_UPLOAD_DIR, { index: false }));
 app.use("/uploads", express.static(UPLOAD_DIR, { index: false }));
 
+async function processUploadInPlace(absPath) {
+  const tmp = absPath + ".tmp";
+  await sharp(absPath)
+    .rotate() // fix orientation from EXIF
+    .resize({ width: 1600, withoutEnlargement: true })
+    .jpeg({ quality: 80, mozjpeg: true })
+    .toFile(tmp);
+  fs.renameSync(tmp, absPath);
+}
+
+
 // ---------- validation ----------
+// Sensible max lengths to avoid huge payloads
+const MAX = {
+  NAME: 80,
+  EMAIL: 254,
+  PHONE: 40,
+  CITY: 40,
+  PROVINCE: 40,
+  COUNTRY: 56,
+  POSTAL: 12,
+  MAKE: 40,
+  MODEL: 40,
+  COLOR: 24,
+  VEHCOND: 120,
+  RESTRICT: 120,
+  ROUTES: 500,
+  AVAIL: 500,
+  NOTES: 1000,
+  SOCIAL: 100
+};
+
+const sReq = (n) => z.string().trim().min(1).max(n);
+const sOpt = (n) => z.string().trim().max(n).optional().default("");
+const nRange = (a, b) => z.coerce.number().min(a).max(b);
+
 const driverSchema = z.object({
-  name: z.string().min(1),
-  email: z.string().email(),
-  phone: z.string().optional().default(""),
-  city: z.string().min(1),
-  province: z.string().min(1),
-  country: z.string().min(1),
-  postalCode: z.string().optional().default(""),
-  carMake: z.string().min(1),
-  carModel: z.string().min(1),
+  name: sReq(MAX.NAME),
+  email: sReq(MAX.EMAIL).email(),
+  phone: sOpt(MAX.PHONE),
+
+  city: sReq(MAX.CITY),
+  province: sReq(MAX.PROVINCE),
+  country: sReq(MAX.COUNTRY),
+  postalCode: sOpt(MAX.POSTAL),
+  otherCities: z.array(z.string().trim().max(MAX.CITY)).max(10).optional().default([]),
+
+  carMake: sReq(MAX.MAKE),
+  carModel: sReq(MAX.MODEL),
   carYear: z.coerce.number().int().min(1990).max(new Date().getFullYear() + 1),
-  color: z.string().optional().default(""),
+  color: sOpt(MAX.COLOR),
   seats: z.coerce.number().int().min(1).max(9).optional().default(5),
-  weeklyMileage: z.coerce.number().min(0),
-  avgDailyDrivingHours: z.coerce.number().min(0).optional().default(0),
-  typicalRoutes: z.string().optional().default(""),
-  availability: z.string().optional().default(""),
-  adPlacementOptions: z.array(z.string()).optional().default([]),
-  vehicleCondition: z.string().optional().default(""),
-  restrictions: z.string().optional().default(""),
-  allowLocationTracking: z.coerce.boolean().optional().default(false),
-  monthlyRate: z.coerce.number().min(0).optional().default(50),
-  imageUrl: z.string().optional().default(""),
-  socialLinks: z
-    .object({ instagram: z.string().optional().default(""), tiktok: z.string().optional().default("") })
-    .optional()
-    .default({ instagram: "", tiktok: "" }),
-  notes: z.string().optional().default(""),
-  otherCities: z.array(z.string()).optional().default([]),
+
+  weeklyMileage: nRange(0, 5000),
+  avgDailyDrivingHours: z.coerce.number().min(0).max(24).optional().default(0),
+  monthlyRate: z.coerce.number().min(0).max(1000).optional().default(0),
+
+  typicalRoutes: sOpt(MAX.ROUTES),
+  availability: sOpt(MAX.AVAIL),
+  vehicleCondition: sOpt(MAX.VEHCOND),
+  restrictions: sOpt(MAX.RESTRICT),
+  notes: sOpt(MAX.NOTES),
+
+  allowLocationTracking: z.boolean().optional().default(false),
+  adPlacementOptions: z.array(z.string()).max(10).optional().default([]),
+
+  imageUrl: sOpt(2048),
+  socialLinks: z.object({
+    instagram: sOpt(MAX.SOCIAL),
+    tiktok: sOpt(MAX.SOCIAL)
+  }).optional().default({ instagram: "", tiktok: "" })
 });
+
 
 const leadSchema = z.object({
   driverId: z.string().min(1),
@@ -127,6 +192,18 @@ function requireAdmin(req, res, next) {
   res.set("WWW-Authenticate", 'Basic realm="AdVehicles Admin"');
   return res.status(401).send("Invalid credentials");
 }
+
+// ---------- admin rate limit ----------
+const adminLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,       // 5 min window
+  max: isProd ? 200 : 5,         // prod=200/5min; dev=5/5min (easier to test)
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// apply limiter+auth to all admin routes
+app.use("/api/admin", requireAdmin, adminLimiter);
+
 
 // ---------- email (Nodemailer) ----------
 let mailer = null;
@@ -246,38 +323,80 @@ app.get("/api/drivers", (req, res) => {
 });
 
 // Create driver (status=pending)
-app.post("/api/drivers", postLimiter, upload.single("image"), (req, res) => {
-  const body = { ...req.body };
+app.post("/api/drivers", postLimiter, upload.single("image"), async (req, res) => {
+  try {
+    const body = { ...req.body };
 
-  if (body.placement) body.adPlacementOptions = Array.isArray(body.placement) ? body.placement : [body.placement];
-  body.allowLocationTracking =
-    body.allowLocationTracking === true ||
-    body.allowLocationTracking === "true" ||
-    body.allowLocationTracking === "on";
+    // --- Honeypot ---
+    if (typeof body.website === "string" && body.website.trim() !== "") {
+      return res.status(400).json({ error: "Bot suspected" });
+    }
+    delete body.website;
 
-  if (req.file) body.imageUrl = `/uploads/${req.file.filename}`;
+    // Normalize placement → adPlacementOptions
+    if (body.placement) {
+      body.adPlacementOptions = Array.isArray(body.placement) ? body.placement : [body.placement];
+    }
 
-  body.socialLinks = { instagram: body.ig || "", tiktok: body.tiktok || "" };
-  if (typeof body.otherCities === "string") {
-    body.otherCities = body.otherCities.split(",").map((s) => s.trim()).filter(Boolean);
-  } else if (!Array.isArray(body.otherCities)) {
-    body.otherCities = [];
+    // Coerce checkbox
+    body.allowLocationTracking =
+      body.allowLocationTracking === true ||
+      body.allowLocationTracking === "true" ||
+      body.allowLocationTracking === "on";
+
+    // Uploaded image → process (EXIF strip/rotate/resize) then set URL
+    if (req.file) {
+      const abs = path.join(UPLOAD_DIR, req.file.filename);
+      try {
+        await processUploadInPlace(abs);
+      } catch (imgErr) {
+        console.error("Upload processing failed:", imgErr);
+        return res.status(400).json({ error: "Invalid image upload" });
+      }
+      body.imageUrl = `/uploads/${req.file.filename}`;
+    }
+
+    // Social links nesting
+    body.socialLinks = { instagram: body.ig || "", tiktok: body.tiktok || "" };
+
+    // otherCities: "a,b,c" → ["a","b","c"]
+    if (typeof body.otherCities === "string") {
+      body.otherCities = body.otherCities.split(",").map((s) => s.trim()).filter(Boolean);
+    } else if (!Array.isArray(body.otherCities)) {
+      body.otherCities = [];
+    }
+
+    // Remove temp fields
+    delete body.ig;
+    delete body.tiktok;
+    delete body.placement;
+
+    // Validate
+    const parsed = driverSchema.safeParse(body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
+    }
+
+    // Persist
+    const all = readDrivers();
+    const entry = {
+      id: "drv_" + nanoid(8),
+      createdAt: new Date().toISOString(),
+      status: "pending",
+      ...parsed.data
+    };
+    all.push(entry);
+    writeDrivers(all);
+    audit({ action: "create", id: entry.id, email: entry.email, status: "pending" });
+
+    return res.json({ ok: true, id: entry.id, status: entry.status });
+  } catch (e) {
+    console.error("Driver submit error:", e);
+    return res.status(500).json({ error: "Server error" });
   }
-  delete body.ig;
-  delete body.tiktok;
-  delete body.placement;
-
-  const parsed = driverSchema.safeParse(body);
-  if (!parsed.success)
-    return res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
-
-  const all = readDrivers();
-  const entry = { id: "drv_" + nanoid(8), createdAt: new Date().toISOString(), status: "pending", ...parsed.data };
-  all.push(entry);
-  writeDrivers(all);
-  audit({ action: "create", id: entry.id, email: entry.email, status: entry.status });
-  res.status(201).json({ ok: true, id: entry.id, status: entry.status });
 });
+
+
 
 // Leads (public "Select")
 const LEADS_FILE = path.join(DATA_DIR, "leads.json");
@@ -440,6 +559,24 @@ app.post("/api/admin/mailer-test", requireAdmin, async (_req, res) => {
 // ---------- static ----------
 app.use(express.static(PUBLIC_DIR));
 app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
+
+// ---------- error handler ----------
+app.use((err, req, res, _next) => {
+  console.error("Unhandled error:", err);
+  if (req.path.startsWith("/api/")) {
+    return res.status(500).json({ ok: false, error: "Server error" });
+  }
+  return res.status(500).send("Server error");
+});
+
+// ---------- 404 handler ----------
+app.use((req, res) => {
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ error: "Not found" });
+  }
+  return res.status(404).sendFile(path.join(PUBLIC_DIR, "404.html"));
+});
+
 
 app.listen(PORT, () => {
   console.log(`AdVehicles running on http://localhost:${PORT} (${NODE_ENV})`);
