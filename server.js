@@ -14,25 +14,26 @@ require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 5173;
 const NODE_ENV = process.env.NODE_ENV || "production";
+const isProd = NODE_ENV === "production";
 
 // ---------- security ----------
 app.use(helmet({ crossOriginResourcePolicy: { policy: "same-site" } }));
-app.set("trust proxy", 1);
+// Behind Cloudflare / Nginx / DO LB? Use TRUE to trust any number of proxies
+app.set("trust proxy", true);
 
 // ---------- parsers ----------
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ---------- rate limit (global) ----------
-const isProd = process.env.NODE_ENV === "production";
-const globalLimiter = rateLimit({
-  windowMs: 60 * 1000,           // 60s window
-  max: isProd ? 300 : 10,        // prod=300/min; dev=10/min (easier to test)
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(globalLimiter);
+// ---------- client IP helper ----------
+const getClientIp = (req) =>
+  (req.headers["cf-connecting-ip"] ||
+    req.headers["x-real-ip"] ||
+    (req.headers["x-forwarded-for"]?.split(",")[0] || "").trim() ||
+    req.ip);
 
+// NOTE: Removed the previous global limiter (it was causing random 429s).
+// We will only rate-limit write endpoints with a robust keyGenerator.
 
 // ---------- paths & persistence ----------
 const ROOT = __dirname;
@@ -57,7 +58,6 @@ app.get("/healthz", (_req, res) => {
     return res.status(500).json({ ok: false, error: "DATA_DIR not writable" });
   }
 });
-
 
 // ---------- helpers ----------
 const readDrivers = () => JSON.parse(fs.readFileSync(DATA_FILE, "utf8") || "[]");
@@ -90,16 +90,14 @@ app.use("/uploads", express.static(UPLOAD_DIR, { index: false }));
 async function processUploadInPlace(absPath) {
   const tmp = absPath + ".tmp";
   await sharp(absPath)
-    .rotate() // fix orientation from EXIF
+    .rotate()
     .resize({ width: 1600, withoutEnlargement: true })
     .jpeg({ quality: 80, mozjpeg: true })
     .toFile(tmp);
   fs.renameSync(tmp, absPath);
 }
 
-
 // ---------- validation ----------
-// Sensible max lengths to avoid huge payloads
 const MAX = {
   NAME: 80,
   EMAIL: 254,
@@ -160,7 +158,6 @@ const driverSchema = z.object({
   }).optional().default({ instagram: "", tiktok: "" })
 });
 
-
 const leadSchema = z.object({
   driverId: z.string().min(1),
   clientName: z.string().min(1),
@@ -169,10 +166,19 @@ const leadSchema = z.object({
   notes: z.string().optional().default(""),
 });
 
-// ---------- rate limit ----------
+// ---------- rate limits (scoped) ----------
 const postLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,
-  max: 10,
+  windowMs: 10 * 60 * 1000,   // 10 minutes
+  max: 30,                     // allow more breathing room
+  keyGenerator: getClientIp,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const adminLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: isProd ? 200 : 5,
+  keyGenerator: getClientIp,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -193,17 +199,8 @@ function requireAdmin(req, res, next) {
   return res.status(401).send("Invalid credentials");
 }
 
-// ---------- admin rate limit ----------
-const adminLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,       // 5 min window
-  max: isProd ? 200 : 5,         // prod=200/5min; dev=5/5min (easier to test)
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // apply limiter+auth to all admin routes
 app.use("/api/admin", requireAdmin, adminLimiter);
-
 
 // ---------- email (Nodemailer) ----------
 let mailer = null;
@@ -220,7 +217,7 @@ function getMailer() {
   mailer = nodemailer.createTransport({
     host: SMTP_HOST,
     port: Number(SMTP_PORT) || 587,
-    secure: String(SMTP_PORT) === "465", // SSL if 465
+    secure: String(SMTP_PORT) === "465",
     auth: { user: SMTP_USER, pass: SMTP_PASS },
     logger: debug,
     debug: debug,
@@ -253,7 +250,7 @@ async function sendApprovedEmail(driver) {
 
   try {
     console.log("[MAIL] verify/connect…");
-    await tx.verify(); // throws if auth/connection bad
+    await tx.verify();
     const info = await tx.sendMail({ from, to, subject, html });
     console.log("✅ [MAIL] Approval queued -> messageId:", info?.messageId || "(no id)", "to:", mask(to));
   } catch (e) {
@@ -323,80 +320,88 @@ app.get("/api/drivers", (req, res) => {
 });
 
 // Create driver (status=pending)
-app.post("/api/drivers", postLimiter, upload.single("image"), async (req, res) => {
-  try {
-    const body = { ...req.body };
+app.post("/api/drivers",
+  rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 20,                 // per-IP create attempts per 10 min
+    keyGenerator: getClientIp,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      const body = { ...req.body };
 
-    // --- Honeypot ---
-    if (typeof body.website === "string" && body.website.trim() !== "") {
-      return res.status(400).json({ error: "Bot suspected" });
-    }
-    delete body.website;
-
-    // Normalize placement → adPlacementOptions
-    if (body.placement) {
-      body.adPlacementOptions = Array.isArray(body.placement) ? body.placement : [body.placement];
-    }
-
-    // Coerce checkbox
-    body.allowLocationTracking =
-      body.allowLocationTracking === true ||
-      body.allowLocationTracking === "true" ||
-      body.allowLocationTracking === "on";
-
-    // Uploaded image → process (EXIF strip/rotate/resize) then set URL
-    if (req.file) {
-      const abs = path.join(UPLOAD_DIR, req.file.filename);
-      try {
-        await processUploadInPlace(abs);
-      } catch (imgErr) {
-        console.error("Upload processing failed:", imgErr);
-        return res.status(400).json({ error: "Invalid image upload" });
+      // --- Honeypot ---
+      if (typeof body.website === "string" && body.website.trim() !== "") {
+        return res.status(400).json({ error: "Bot suspected" });
       }
-      body.imageUrl = `/uploads/${req.file.filename}`;
+      delete body.website;
+
+      // Normalize placement → adPlacementOptions
+      if (body.placement) {
+        body.adPlacementOptions = Array.isArray(body.placement) ? body.placement : [body.placement];
+      }
+
+      // Coerce checkbox
+      body.allowLocationTracking =
+        body.allowLocationTracking === true ||
+        body.allowLocationTracking === "true" ||
+        body.allowLocationTracking === "on";
+
+      // Uploaded image → process (EXIF strip/rotate/resize) then set URL
+      if (req.file) {
+        const abs = path.join(UPLOAD_DIR, req.file.filename);
+        try {
+          await processUploadInPlace(abs);
+        } catch (imgErr) {
+          console.error("Upload processing failed:", imgErr);
+          return res.status(400).json({ error: "Invalid image upload" });
+        }
+        body.imageUrl = `/uploads/${req.file.filename}`;
+      }
+
+      // Social links nesting
+      body.socialLinks = { instagram: body.ig || "", tiktok: body.tiktok || "" };
+
+      // otherCities: "a,b,c" → ["a","b","c"]
+      if (typeof body.otherCities === "string") {
+        body.otherCities = body.otherCities.split(",").map((s) => s.trim()).filter(Boolean);
+      } else if (!Array.isArray(body.otherCities)) {
+        body.otherCities = [];
+      }
+
+      // Remove temp fields
+      delete body.ig;
+      delete body.tiktok;
+      delete body.placement;
+
+      // Validate
+      const parsed = driverSchema.safeParse(body);
+      if (!parsed.success) {
+        return res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
+      }
+
+      // Persist
+      const all = readDrivers();
+      const entry = {
+        id: "drv_" + nanoid(8),
+        createdAt: new Date().toISOString(),
+        status: "pending",
+        ...parsed.data
+      };
+      all.push(entry);
+      writeDrivers(all);
+      audit({ action: "create", id: entry.id, email: entry.email, status: "pending" });
+
+      return res.json({ ok: true, id: entry.id, status: entry.status });
+    } catch (e) {
+      console.error("Driver submit error:", e);
+      return res.status(500).json({ error: "Server error" });
     }
-
-    // Social links nesting
-    body.socialLinks = { instagram: body.ig || "", tiktok: body.tiktok || "" };
-
-    // otherCities: "a,b,c" → ["a","b","c"]
-    if (typeof body.otherCities === "string") {
-      body.otherCities = body.otherCities.split(",").map((s) => s.trim()).filter(Boolean);
-    } else if (!Array.isArray(body.otherCities)) {
-      body.otherCities = [];
-    }
-
-    // Remove temp fields
-    delete body.ig;
-    delete body.tiktok;
-    delete body.placement;
-
-    // Validate
-    const parsed = driverSchema.safeParse(body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
-    }
-
-    // Persist
-    const all = readDrivers();
-    const entry = {
-      id: "drv_" + nanoid(8),
-      createdAt: new Date().toISOString(),
-      status: "pending",
-      ...parsed.data
-    };
-    all.push(entry);
-    writeDrivers(all);
-    audit({ action: "create", id: entry.id, email: entry.email, status: "pending" });
-
-    return res.json({ ok: true, id: entry.id, status: entry.status });
-  } catch (e) {
-    console.error("Driver submit error:", e);
-    return res.status(500).json({ error: "Server error" });
   }
-});
-
-
+);
 
 // Leads (public "Select")
 const LEADS_FILE = path.join(DATA_DIR, "leads.json");
@@ -404,45 +409,54 @@ if (!fs.existsSync(LEADS_FILE)) fs.writeFileSync(LEADS_FILE, JSON.stringify([], 
 const readLeads = () => JSON.parse(fs.readFileSync(LEADS_FILE, "utf8") || "[]");
 const writeLeads = (a) => fs.writeFileSync(LEADS_FILE, JSON.stringify(a, null, 2));
 
-app.post("/api/leads", async (req, res) => {
-  const parsed = leadSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: "Invalid lead", details: parsed.error.flatten() });
+app.post("/api/leads",
+  rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,                 // generous; adjust if abused
+    keyGenerator: getClientIp,
+    standardHeaders: true,
+    legacyHeaders: false,
+  }),
+  async (req, res) => {
+    const parsed = leadSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Invalid lead", details: parsed.error.flatten() });
 
-  const { driverId, clientName, clientEmail, company, notes } = parsed.data;
-  const drivers = readDrivers();
-  const driver = drivers.find((d) => d.id === driverId && d.status === "approved");
-  if (!driver) return res.status(404).json({ error: "Driver not found or not approved" });
+    const { driverId, clientName, clientEmail, company, notes } = parsed.data;
+    const drivers = readDrivers();
+    const driver = drivers.find((d) => d.id === driverId && d.status === "approved");
+    if (!driver) return res.status(404).json({ error: "Driver not found or not approved" });
 
-  const leads = readLeads();
-  const lead = {
-    id: "lead_" + nanoid(8),
-    driverId,
-    clientName,
-    clientEmail,
-    company,
-    notes,
-    createdAt: new Date().toISOString(),
-  };
-  leads.push(lead);
-  writeLeads(leads);
-  audit({ action: "lead_create", leadId: lead.id, driverId });
+    const leads = readLeads();
+    const lead = {
+      id: "lead_" + nanoid(8),
+      driverId,
+      clientName,
+      clientEmail,
+      company,
+      notes,
+      createdAt: new Date().toISOString(),
+    };
+    leads.push(lead);
+    writeLeads(leads);
+    audit({ action: "lead_create", leadId: lead.id, driverId });
 
-  const tx = getMailer();
-  if (tx) {
-    tx.sendMail({
-      from: process.env.SMTP_FROM || `AdVehicles <${process.env.SMTP_USER}>`,
-      to: process.env.ADMIN_NOTIFY_TO || process.env.SMTP_USER,
-      subject: `New selection: ${driver.carYear} ${driver.carMake} ${driver.carModel} (${driver.city})`,
-      html: `<div style="font-family:Arial,Helvetica,sans-serif">Client: ${clientName} &lt;${clientEmail}&gt; ${
-        company ? "• " + company : ""
-      }<br/>Driver: ${driver.name} — ${driver.city}, ${driver.province}<br/>Notes: ${notes || "-"}</div>`,
-    })
-      .then((info) => console.log("📧 [MAIL] Lead emailed (msgId:", info?.messageId || "n/a", ")"))
-      .catch((e) => console.error("❌ [MAIL] lead error:", e.message));
+    const tx = getMailer();
+    if (tx) {
+      tx.sendMail({
+        from: process.env.SMTP_FROM || `AdVehicles <${process.env.SMTP_USER}>`,
+        to: process.env.ADMIN_NOTIFY_TO || process.env.SMTP_USER,
+        subject: `New selection: ${driver.carYear} ${driver.carMake} ${driver.carModel} (${driver.city})`,
+        html: `<div style="font-family:Arial,Helvetica,sans-serif">Client: ${clientName} &lt;${clientEmail}&gt; ${
+          company ? "• " + company : ""
+        }<br/>Driver: ${driver.name} — ${driver.city}, ${driver.province}<br/>Notes: ${notes || "-"}</div>`,
+      })
+        .then((info) => console.log("📧 [MAIL] Lead emailed (msgId:", info?.messageId || "n/a", ")"))
+        .catch((e) => console.error("❌ [MAIL] lead error:", e.message));
+    }
+
+    res.status(201).json({ ok: true, id: lead.id });
   }
-
-  res.status(201).json({ ok: true, id: lead.id });
-});
+);
 
 // ---------- ADMIN API ----------
 app.get("/api/admin/ping", requireAdmin, (_req, res) => res.json({ ok: true }));
@@ -467,9 +481,8 @@ app.post("/api/admin/drivers/:id/approve", requireAdmin, async (req, res) => {
   writeDrivers(all);
   audit({ action: "approve", id });
 
-  res.json({ ok: true }); // reply first
+  res.json({ ok: true });
 
-  // background email
   setTimeout(() => {
     console.log("[ADMIN] Sending approval email (background) for", id);
     sendApprovedEmail(all[i]).catch((e) => console.error("❌ [ADMIN] email bg error:", e.message));
@@ -576,7 +589,6 @@ app.use((req, res) => {
   }
   return res.status(404).sendFile(path.join(PUBLIC_DIR, "404.html"));
 });
-
 
 app.listen(PORT, () => {
   console.log(`AdVehicles running on http://localhost:${PORT} (${NODE_ENV})`);
