@@ -3,7 +3,7 @@ const express = require("express");
 const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
-const { nanoid } = require("nanoid");
+const crypto = require("crypto"); // ← replace nanoid with crypto
 const { z } = require("zod");
 const multer = require("multer");
 const helmet = require("helmet");
@@ -16,6 +16,10 @@ const PORT = process.env.PORT || 5173;
 const NODE_ENV = process.env.NODE_ENV || "production";
 const isProd = NODE_ENV === "production";
 
+// --- tiny id helper (replaces nanoid) ---
+const rid = (len = 10) =>
+  crypto.randomBytes(Math.ceil(len / 2)).toString("hex").slice(0, len);
+
 // ---------- security ----------
 app.use(helmet({ crossOriginResourcePolicy: { policy: "same-site" } }));
 app.set("trust proxy", 1);
@@ -24,17 +28,12 @@ app.set("trust proxy", 1);
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ---------- Queryable rate limits (fix 429 pain) ----------
+// ---------- Queryable rate limits ----------
 const GLOBAL_RATE_WINDOW_MS = Number(process.env.GLOBAL_RATE_WINDOW_MS ?? 60_000);
-const GLOBAL_RATE_MAX = Number(
-  process.env.GLOBAL_RATE_MAX ?? (isProd ? 300 : 10_000) // very high in dev by default
-);
+const GLOBAL_RATE_MAX = Number(process.env.GLOBAL_RATE_MAX ?? (isProd ? 300 : 10_000));
 const ADMIN_RATE_WINDOW_MS = Number(process.env.ADMIN_RATE_WINDOW_MS ?? 300_000);
-const ADMIN_RATE_MAX = Number(
-  process.env.ADMIN_RATE_MAX ?? (isProd ? 200 : 5_000) // very high in dev by default
-);
+const ADMIN_RATE_MAX = Number(process.env.ADMIN_RATE_MAX ?? (isProd ? 200 : 5_000));
 
-// global limiter
 const globalLimiter = rateLimit({
   windowMs: GLOBAL_RATE_WINDOW_MS,
   max: GLOBAL_RATE_MAX,
@@ -50,7 +49,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, "data");
 const DATA_FILE = path.join(DATA_DIR, "drivers.json");
 const AUDIT_FILE = path.join(DATA_DIR, "audit.log");
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(DATA_DIR, "uploads");
-const LEGACY_UPLOAD_DIR = path.join(ROOT, "uploads"); // legacy folder from early versions
+const LEGACY_UPLOAD_DIR = path.join(ROOT, "uploads");
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -84,7 +83,7 @@ const mask = (s) => {
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
   filename: (_req, file, cb) =>
-    cb(null, "img_" + nanoid(10) + path.extname(file.originalname || "").toLowerCase()),
+    cb(null, "img_" + rid(10) + path.extname(file.originalname || "").toLowerCase()),
 });
 const upload = multer({
   storage,
@@ -149,7 +148,7 @@ const driverSchema = z.object({
   weeklyMileage: nRange(0, 5000),
   avgDailyDrivingHours: z.coerce.number().min(0).max(24).optional().default(0),
 
-  // NOTE: monthlyRate can arrive as 0 from form; you can keep it hidden on the public form.
+  // form can send 0; you hide it on public form and set from admin UI
   monthlyRate: z.coerce.number().min(0).max(1000).optional().default(0),
 
   typicalRoutes: sOpt(MAX.ROUTES),
@@ -179,10 +178,10 @@ const leadSchema = z.object({
   notes: z.string().optional().default(""),
 });
 
-// ---------- public submit limiter (still reasonable) ----------
+// ---------- public submit limiter ----------
 const postLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 50, // allow more submits if you test a lot
+  max: 50,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -229,7 +228,7 @@ function getMailer() {
   mailer = nodemailer.createTransport({
     host: SMTP_HOST,
     port: Number(SMTP_PORT) || 587,
-    secure: String(SMTP_PORT) === "465", // SSL if 465
+    secure: String(SMTP_PORT) === "465",
     auth: { user: SMTP_USER, pass: SMTP_PASS },
     logger: debug,
     debug: debug,
@@ -308,7 +307,9 @@ app.get("/api/drivers", (req, res) => {
   if (placement) {
     const wanted = String(placement).toLowerCase();
     drivers = drivers.filter(
-      (d) => Array.isArray(d.adPlacementOptions) && d.adPlacementOptions.some((p) => String(p).toLowerCase().includes(wanted))
+      (d) =>
+        Array.isArray(d.adPlacementOptions) &&
+        d.adPlacementOptions.some((p) => String(p).toLowerCase().includes(wanted))
     );
   }
 
@@ -341,7 +342,7 @@ app.post("/api/drivers", postLimiter, upload.single("image"), async (req, res) =
   try {
     const body = { ...req.body };
 
-    // --- Honeypot ---
+    // Honeypot
     if (typeof body.website === "string" && body.website.trim() !== "") {
       return res.status(400).json({ error: "Bot suspected" });
     }
@@ -394,7 +395,7 @@ app.post("/api/drivers", postLimiter, upload.single("image"), async (req, res) =
     // Persist
     const all = readDrivers();
     const entry = {
-      id: "drv_" + nanoid(8),
+      id: "drv_" + rid(8),
       createdAt: new Date().toISOString(),
       status: "pending",
       ...parsed.data,
@@ -427,7 +428,7 @@ app.post("/api/leads", async (req, res) => {
 
   const leads = readLeads();
   const lead = {
-    id: "lead_" + nanoid(8),
+    id: "lead_" + rid(8),
     driverId,
     clientName,
     clientEmail,
@@ -466,7 +467,7 @@ app.get("/api/admin/drivers", requireAdmin, (req, res) => {
   res.json({ count: drivers.length, drivers });
 });
 
-// NEW: set/update monthlyRate (used by admin UI)
+// set/update monthlyRate (used by admin UI)
 app.post("/api/admin/drivers/:id/price", requireAdmin, (req, res) => {
   const id = req.params.id;
   const all = readDrivers();
@@ -499,7 +500,6 @@ app.post("/api/admin/drivers/:id/approve", requireAdmin, async (req, res) => {
 
   res.json({ ok: true }); // reply first
 
-  // background email
   setTimeout(() => {
     console.log("[ADMIN] Sending approval email (background) for", id);
     sendApprovedEmail(all[i]).catch((e) => console.error("❌ [ADMIN] email bg error:", e.message));
@@ -609,5 +609,7 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   console.log(`AdVehicles running on http://localhost:${PORT} (${NODE_ENV})`);
-  console.log(`[DEBUG] Rate limits: GLOBAL ${GLOBAL_RATE_MAX}/${GLOBAL_RATE_WINDOW_MS}ms; ADMIN ${ADMIN_RATE_MAX}/${ADMIN_RATE_WINDOW_MS}ms`);
+  console.log(
+    `[DEBUG] Rate limits: GLOBAL ${GLOBAL_RATE_MAX}/${GLOBAL_RATE_WINDOW_MS}ms; ADMIN ${ADMIN_RATE_MAX}/${ADMIN_RATE_WINDOW_MS}ms`
+  );
 });
