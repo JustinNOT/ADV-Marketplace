@@ -32,3 +32,10 @@
 {"at":"2025-10-10T15:51:54.843Z","action":"reject","id":"drv_Zmt6rhI8"}
 {"at":"2025-10-10T16:09:30.131Z","action":"create","id":"drv_N_JsSkB-","email":"test@example.com","status":"pending"}
 {"at":"2025-10-10T16:22:01.923Z","action":"create","id":"drv_P9DLpg6O","email":"pic@example.com","status":"pending"}
+{"at":"2025-10-11T13:46:42.502Z","action":"create","id":"drv_JF221gOO","email":"wasdwasdwasdwasd05@gmail.com","status":"pending"}
+{"at":"2025-10-11T14:57:04.401Z","action":"approve","id":"drv_N_JsSkB-"}
+{"at":"2025-10-11T15:29:34.641Z","action":"set_price","id":"drv_JF221gOO","monthlyRate":50}
+{"at":"2025-10-11T15:29:34.649Z","action":"approve","id":"drv_JF221gOO"}
+{"at":"2025-10-11T15:37:53.430Z","action":"delete","id":"drv_P9DLpg6O"}
+{"at":"2025-10-11T15:37:57.657Z","action":"delete","id":"drv_N_JsSkB-"}
+{"at":"2025-10-11T15:38:01.724Z","action":"delete","id":"drv_JF221gOO"}

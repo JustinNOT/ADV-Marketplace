@@ -1,183 +1,197 @@
 // public/js/admin.js
-(function () {
-  const $ = (s) => document.querySelector(s);
-  const rows = $("#rows"),
-    statusSel = $("#statusSel"),
-    refreshBtn = $("#refreshBtn"),
-    q = $("#q"),
-    clearQ = $("#clearQ"),
-    loginBtn = $("#loginBtn"),
-    logoutBtn = $("#logoutBtn"),
-    verifyBtn = $("#verifyBtn"),
-    testEmailBtn = $("#testEmailBtn"),
-    loginStatus = $("#loginStatus"),
-    panel = $("#panel"),
-    flashBox = $("#flash"),
-    mailInfo = $("#mailInfo");
+document.addEventListener('DOMContentLoaded', () => {
+  const $  = (s, p=document) => p.querySelector(s);
 
-  const AUTH_KEY = "adminAuth";
+  // Debug helper
+  const debugBox = $('#debug');
+  const dbg = (msg, obj) => {
+    if (!debugBox) return;
+    debugBox.textContent = typeof obj === 'undefined' ? msg : (msg + '\n' + JSON.stringify(obj, null, 2));
+    try { console.log(msg, obj || ''); } catch {}
+  };
 
-  function flash(msg, isErr = false) {
-    if (!flashBox) return;
-    flashBox.textContent = msg;
-    flashBox.style.color = isErr ? "#ffb4b4" : "#A9B0BF";
-    flashBox.style.opacity = "1";
-    setTimeout(() => (flashBox.style.opacity = "0.75"), 1500);
+  // Basic Auth state
+  let auth = sessionStorage.getItem('adv_admin_auth') || '';
+  function setAuth(u,p,remember) {
+    auth = 'Basic ' + btoa(`${u}:${p}`);
+    if (remember) sessionStorage.setItem('adv_admin_auth', auth);
   }
+  function clearAuth() { auth=''; sessionStorage.removeItem('adv_admin_auth'); }
 
-  function setAuth(user, pass) {
-    sessionStorage.setItem(AUTH_KEY, btoa(unescape(encodeURIComponent(user + ":" + pass))));
+  // Raw & JSON fetchers with Authorization
+  async function apiRaw(path, opts={}) {
+    const res = await fetch(path, { ...opts, headers: { 'Authorization': auth, ...(opts.headers||{}) } });
+    const text = await res.text().catch(()=> '');
+    return { res, text };
   }
-  function clearAuth() { sessionStorage.removeItem(AUTH_KEY); }
-  function authHeader() {
-    const t = sessionStorage.getItem(AUTH_KEY);
-    return t ? { Authorization: "Basic " + t } : {};
-  }
-  function showPanel(show) { panel.classList.toggle("hidden", !show); }
-
-  async function ping() {
-    try { const r = await fetch("/api/admin/ping", { headers: authHeader() }); return r.ok; }
-    catch { return false; }
-  }
-
-  async function list(status) {
-    const r = await fetch("/api/admin/drivers?status=" + encodeURIComponent(status), { headers: authHeader() });
-    if (!r.ok) throw new Error("Auth or fetch failed (" + r.status + ")");
-    return r.json();
-  }
-
-  async function act(id, action) {
-    const method = action === "delete" ? "DELETE" : "POST";
-    let url = "";
-    if (action === "approve") url = `/api/admin/drivers/${id}/approve`;
-    else if (action === "reject") url = `/api/admin/drivers/${id}/reject`;
-    else url = `/api/admin/drivers/${id}`;
-    return fetch(url, { method, headers: authHeader() });
-  }
-
-  function rowHTML(d) {
-    const placements = (d.adPlacementOptions || []).join(" · ") || "—";
-    return `
-      <tr data-id="${d.id}">
-        <td>${d.imageUrl ? `<img class="thumb" src="${d.imageUrl}" alt="car">` : "—"}</td>
-        <td>
-          <div><strong>${d.name}</strong> <span class="pill">${d.status}</span></div>
-          <div class="muted">${d.carYear} ${d.carMake} ${d.carModel} • ${d.color || "-"} • seats ${d.seats || "-"}</div>
-          <div class="muted">Mileage: ${d.weeklyMileage} km/wk • Rate: $${d.monthlyRate}/mo</div>
-          <div class="muted">Also visits: ${(d.otherCities||[]).join(", ") || "—"}</div>
-        </td>
-        <td><div>${d.city}, ${d.province}</div><div class="muted">${d.country}</div></td>
-        <td>${placements}</td>
-        <td>
-          <div class="muted">Created: ${new Date(d.createdAt).toLocaleString()}</div>
-          ${d.approvedAt ? `<div class="muted">Approved: ${new Date(d.approvedAt).toLocaleString()}</div>` : ""}
-        </td>
-        <td>
-          <div class="inline">
-            <button data-action="approve" type="button">Approve</button>
-            <button data-action="reject" type="button" class="ghost">Reject</button>
-            <button data-action="delete" type="button" class="danger">Delete</button>
-          </div>
-        </td>
-      </tr>`;
-  }
-
-  function applySearchFilter(items) {
-    const term = q.value.trim().toLowerCase();
-    if (!term) return items;
-    return items.filter((d) => {
-      const hay = [
-        d.name, d.city, d.province, d.country, d.carMake, d.carModel, d.typicalRoutes, (d.otherCities || []).join(" "),
-      ].filter(Boolean).join(" ").toLowerCase();
-      return hay.includes(term);
-    });
-  }
-
-  async function render() {
-    try {
-      const status = statusSel.value;
-      const { drivers } = await list(status);
-      const filtered = applySearchFilter(drivers);
-      rows.innerHTML = filtered.map(rowHTML).join("") || `<tr><td colspan="6" class="muted">No drivers found.</td></tr>`;
-    } catch (e) {
-      rows.innerHTML = `<tr><td colspan="6" class="muted">Auth failed or API error.</td></tr>`;
+  async function apiJSON(path, opts={}) {
+    const { res, text } = await apiRaw(path, { ...opts, headers: { ...(opts.headers||{}), 'Content-Type':'application/json' } });
+    if (!res.ok) {
+      if (res.status === 429) throw new Error('429 Too Many Requests — admin API limit.');
+      if (res.status === 401) throw new Error('401 Unauthorized — credentials not accepted.');
+      throw new Error(`HTTP ${res.status} ${text}`);
     }
+    try { return JSON.parse(text || '{}'); } catch { return text; }
+  }
+  async function apiGET(path) {
+    const { res, text } = await apiRaw(path);
+    if (!res.ok) {
+      if (res.status === 429) throw new Error('429 Too Many Requests — admin API limit.');
+      if (res.status === 401) throw new Error('401 Unauthorized — credentials not accepted.');
+      throw new Error(`HTTP ${res.status} ${text}`);
+    }
+    try { return JSON.parse(text || '{}'); } catch { return text; }
   }
 
-  // login/logout
-  loginBtn.addEventListener("click", async () => {
-    const user = $("#u").value.trim();
-    const pass = $("#p").value;
-    if (!user || !pass) return alert("Enter username and password");
-    setAuth(user, pass);
-    const ok = await ping();
-    if (ok) { loginStatus.textContent = "Logged in"; showPanel(true); await render(); }
-    else { clearAuth(); loginStatus.textContent = "Login failed"; showPanel(false); }
-  });
-  logoutBtn.addEventListener("click", () => { clearAuth(); loginStatus.textContent = "Logged out"; showPanel(false); rows.innerHTML = ""; });
+  // DOM refs
+  const loginView = $('#login');
+  const appView   = $('#app');
+  const countEl   = $('#count');
+  const listEl    = $('#list');
+  const statusFilter = $('#statusFilter');
+  const loginErr  = $('#loginErr');
 
-  // list interactions
-  refreshBtn?.addEventListener("click", render);
-  statusSel?.addEventListener("change", render);
-  q?.addEventListener("input", render);
-  clearQ?.addEventListener("click", () => { q.value = ""; render(); });
+  // Show app
+  async function showApp() {
+    loginView.hidden = true;
+    appView.hidden = false;
+    await loadDrivers();
+  }
 
-  // approve/reject/delete
-  rows.addEventListener("click", async (e) => {
-    const btn = e.target.closest("button");
-    if (!btn) return;
-    const tr = e.target.closest("tr");
-    const id = tr?.dataset?.id;
-    const action = btn.dataset.action;
-    if (!id || !action) return;
-
-    try {
-      if (action === "delete" && !confirm("Delete this entry?")) return;
-      const r = await act(id, action);
-      let payload = {};
-      try { payload = await r.clone().json(); } catch {}
-      if (!r.ok) {
-        const txt = await r.text().catch(()=> "");
-        throw new Error(`HTTP ${r.status} ${txt}`);
-      }
-      if (action === "approve") flash(`Approved ${id}. (Check server log for mail result)`);
-      if (action === "delete") flash(`Deleted ${id}`);
-      if (action === "reject") flash(`Rejected ${id}`);
-      await render();
-    } catch (err) {
-      flash(`Action failed: ${err.message}`, true);
-    }
-  });
-
-  // mailer debug buttons
-  verifyBtn?.addEventListener("click", async () => {
-    try {
-      const confRes = await fetch("/api/admin/mailer-config", { headers: authHeader() });
-      const conf = await confRes.json();
-      mailInfo.classList.remove("hidden");
-      mailInfo.textContent = JSON.stringify(conf, null, 2);
-      const r = await fetch("/api/admin/mailer-verify", { headers: authHeader() });
-      const j = await r.json();
-      flash(j.ok ? "Mailer verify OK" : "Mailer verify failed", !j.ok);
-    } catch (e) {
-      flash("Mailer verify error: " + e.message, true);
-    }
-  });
-
-  testEmailBtn?.addEventListener("click", async () => {
-    try {
-      const r = await fetch("/api/admin/mailer-test", { method: "POST", headers: authHeader() });
-      const j = await r.json().catch(() => ({}));
-      flash(j.ok ? "Test email sent" : "Test email failed: " + (j.error || r.status), !j.ok);
-    } catch (e) {
-      flash("Test email error: " + e.message, true);
-    }
-  });
-
-  // auto-restore session
+  // Try existing auth
   (async () => {
-    const has = !!sessionStorage.getItem(AUTH_KEY);
-    if (has && (await ping())) { loginStatus.textContent = "Logged in"; showPanel(true); render(); }
-    else { clearAuth(); loginStatus.textContent = ""; showPanel(false); }
+    if (!auth) return;
+    const { res, text } = await apiRaw('/api/admin/ping');
+    dbg('Startup /ping', { status: res.status, body: text });
+    if (res.ok) await showApp();
+    else clearAuth();
   })();
-})();
+
+  // Sign-in (NO FORM SUBMIT → NO REFRESH)
+  $('#signin').addEventListener('click', async () => {
+    loginErr.textContent = '';
+    const u = $('#user').value.trim();
+    const p = $('#pass').value;
+    const remember = $('#remember').checked;
+    if (!u || !p) { loginErr.textContent = 'Enter user & password'; return; }
+
+    setAuth(u,p,remember);
+    const { res, text } = await apiRaw('/api/admin/ping');
+    dbg('Login /ping', { status: res.status, body: text });
+    if (res.ok) await showApp();
+    else { clearAuth(); loginErr.textContent = 'Invalid credentials (or server not running).'; }
+  });
+
+  $('#signout').addEventListener('click', () => { clearAuth(); location.reload(); });
+  $('#refresh').addEventListener('click', loadDrivers);
+  statusFilter.addEventListener('change', loadDrivers);
+
+  function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+  function driverCard(d) {
+    const wrap = document.createElement('div');
+    wrap.className = 'card';
+    wrap.innerHTML = `
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <strong>${escapeHtml(d.name)}</strong>
+          <div class="muted">${escapeHtml(d.email)} • ${escapeHtml(d.city)}, ${escapeHtml(d.province)}</div>
+          <div class="muted">${d.carYear} ${escapeHtml(d.carMake)} ${escapeHtml(d.carModel)} • mileage ${Number(d.weeklyMileage||0)}</div>
+          <div class="muted">Status: <span class="pill">${d.status}</span> Created: ${new Date(d.createdAt).toLocaleString()}</div>
+          ${d.approvedAt ? `<div class="muted">Approved: ${new Date(d.approvedAt).toLocaleString()}</div>` : ''}
+        </div>
+        <div>${d.imageUrl ? `<img class="thumb" src="${d.imageUrl}" alt="car" />` : ''}</div>
+      </div>
+
+      <div class="row" style="margin-top:10px">
+        <label>Monthly Rate ($): <input type="number" min="0" max="1000" step="1" id="price_${d.id}" value="${Number(d.monthlyRate||0)}" style="width:120px"></label>
+        <button class="ok"   id="btn_set_${d.id}"         type="button">Set price</button>
+        <button class="ok"   id="btn_setapprove_${d.id}"  type="button">Set price & Approve</button>
+        <button class="warn" id="btn_approve_${d.id}"     type="button" ${d.status==='approved'?'disabled':''}>Approve</button>
+        <button class="danger" id="btn_reject_${d.id}"    type="button" ${d.status==='rejected'?'disabled':''}>Reject</button>
+        <button class="danger" id="btn_delete_${d.id}"    type="button">Delete</button>
+      </div>
+    `;
+
+    // actions
+    wrap.querySelector(`#btn_set_${d.id}`)?.addEventListener('click', async () => {
+      try {
+        const v = Number((wrap.querySelector(`#price_${d.id}`).value||'0').trim());
+        if (!(v >= 0 && v <= 1000)) return alert('Enter a price between 0 and 1000');
+        const { res, text } = await apiRaw(`/api/admin/drivers/${d.id}/price`, {
+          method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ monthlyRate: v })
+        });
+        dbg('Set price', { id: d.id, status: res.status, body: text });
+        if (!res.ok) {
+          if (res.status === 404) alert('Server missing route: POST /api/admin/drivers/:id/price');
+          else alert(`Price failed: ${res.status} ${text}`);
+        } else {
+          await loadDrivers();
+        }
+      } catch (e) { alert(e.message); }
+    });
+
+    wrap.querySelector(`#btn_setapprove_${d.id}`)?.addEventListener('click', async () => {
+      try {
+        const v = Number((wrap.querySelector(`#price_${d.id}`).value||'0').trim());
+        if (!(v >= 0 && v <= 1000)) return alert('Enter a price between 0 and 1000');
+        let r = await apiRaw(`/api/admin/drivers/${d.id}/price`, {
+          method: 'POST', headers: { 'Content-Type':'application/json' }, body: JSON.stringify({ monthlyRate: v })
+        });
+        dbg('Set price (before approve)', { id: d.id, status: r.res.status, body: r.text });
+        if (!r.res.ok) return alert(`Price failed: ${r.res.status} ${r.text}`);
+
+        r = await apiRaw(`/api/admin/drivers/${d.id}/approve`, { method: 'POST' });
+        dbg('Approve (after price)', { id: d.id, status: r.res.status, body: r.text });
+        if (!r.res.ok) return alert(`Approve failed: ${r.res.status} ${r.text}`);
+        alert('Approved. If mail is configured, the email will include the monthly rate.');
+        await loadDrivers();
+      } catch (e) { alert(e.message); }
+    });
+
+    wrap.querySelector(`#btn_approve_${d.id}`)?.addEventListener('click', async () => {
+      const { res, text } = await apiRaw(`/api/admin/drivers/${d.id}/approve`, { method:'POST' });
+      dbg('Approve', { id: d.id, status: res.status, body: text });
+      if (!res.ok) return alert(`Approve failed: ${res.status} ${text}`);
+      await loadDrivers();
+    });
+
+    wrap.querySelector(`#btn_reject_${d.id}`)?.addEventListener('click', async () => {
+      if (!confirm('Reject this driver?')) return;
+      const { res, text } = await apiRaw(`/api/admin/drivers/${d.id}/reject`, { method:'POST' });
+      dbg('Reject', { id: d.id, status: res.status, body: text });
+      if (!res.ok) return alert(`Reject failed: ${res.status} ${text}`);
+      await loadDrivers();
+    });
+
+    wrap.querySelector(`#btn_delete_${d.id}`)?.addEventListener('click', async () => {
+      if (!confirm('Delete permanently?')) return;
+      const { res, text } = await apiRaw(`/api/admin/drivers/${d.id}`, { method:'DELETE' });
+      dbg('Delete', { id: d.id, status: res.status, body: text });
+      if (!res.ok) return alert(`Delete failed: ${res.status} ${text}`);
+      await loadDrivers();
+    });
+
+    return wrap;
+  }
+
+  async function loadDrivers() {
+    try {
+      const status = statusFilter.value || 'pending';
+      const data = await apiGET(`/api/admin/drivers?status=${encodeURIComponent(status)}`);
+      dbg('List drivers', { statusFilter: status, count: data.count });
+      listEl.innerHTML = '';
+      $('#count').textContent = `${data.count} result(s)`;
+      data.drivers.forEach(d => listEl.appendChild(driverCard(d)));
+    } catch (e) {
+      listEl.innerHTML = '';
+      $('#count').textContent = '';
+      dbg('List error', { error: e.message });
+      listEl.innerHTML = `<div class="muted">Auth failed or API error: ${String(e.message)}</div>`;
+    }
+  }
+
+  // Sign-in click (again to ensure no submit)
+  // (kept separate from above to be explicit)
+  $('#signin').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') ev.preventDefault(); });
+});

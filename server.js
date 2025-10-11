@@ -18,22 +18,30 @@ const isProd = NODE_ENV === "production";
 
 // ---------- security ----------
 app.use(helmet({ crossOriginResourcePolicy: { policy: "same-site" } }));
-// Behind Cloudflare / Nginx / DO LB? Use TRUE to trust any number of proxies
-app.set("trust proxy", true);
+app.set("trust proxy", 1);
 
 // ---------- parsers ----------
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// ---------- client IP helper ----------
-const getClientIp = (req) =>
-  (req.headers["cf-connecting-ip"] ||
-    req.headers["x-real-ip"] ||
-    (req.headers["x-forwarded-for"]?.split(",")[0] || "").trim() ||
-    req.ip);
+// ---------- Queryable rate limits (fix 429 pain) ----------
+const GLOBAL_RATE_WINDOW_MS = Number(process.env.GLOBAL_RATE_WINDOW_MS ?? 60_000);
+const GLOBAL_RATE_MAX = Number(
+  process.env.GLOBAL_RATE_MAX ?? (isProd ? 300 : 10_000) // very high in dev by default
+);
+const ADMIN_RATE_WINDOW_MS = Number(process.env.ADMIN_RATE_WINDOW_MS ?? 300_000);
+const ADMIN_RATE_MAX = Number(
+  process.env.ADMIN_RATE_MAX ?? (isProd ? 200 : 5_000) // very high in dev by default
+);
 
-// NOTE: Removed the previous global limiter (it was causing random 429s).
-// We will only rate-limit write endpoints with a robust keyGenerator.
+// global limiter
+const globalLimiter = rateLimit({
+  windowMs: GLOBAL_RATE_WINDOW_MS,
+  max: GLOBAL_RATE_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(globalLimiter);
 
 // ---------- paths & persistence ----------
 const ROOT = __dirname;
@@ -114,7 +122,7 @@ const MAX = {
   ROUTES: 500,
   AVAIL: 500,
   NOTES: 1000,
-  SOCIAL: 100
+  SOCIAL: 100,
 };
 
 const sReq = (n) => z.string().trim().min(1).max(n);
@@ -140,6 +148,8 @@ const driverSchema = z.object({
 
   weeklyMileage: nRange(0, 5000),
   avgDailyDrivingHours: z.coerce.number().min(0).max(24).optional().default(0),
+
+  // NOTE: monthlyRate can arrive as 0 from form; you can keep it hidden on the public form.
   monthlyRate: z.coerce.number().min(0).max(1000).optional().default(0),
 
   typicalRoutes: sOpt(MAX.ROUTES),
@@ -152,10 +162,13 @@ const driverSchema = z.object({
   adPlacementOptions: z.array(z.string()).max(10).optional().default([]),
 
   imageUrl: sOpt(2048),
-  socialLinks: z.object({
-    instagram: sOpt(MAX.SOCIAL),
-    tiktok: sOpt(MAX.SOCIAL)
-  }).optional().default({ instagram: "", tiktok: "" })
+  socialLinks: z
+    .object({
+      instagram: sOpt(MAX.SOCIAL),
+      tiktok: sOpt(MAX.SOCIAL),
+    })
+    .optional()
+    .default({ instagram: "", tiktok: "" }),
 });
 
 const leadSchema = z.object({
@@ -166,19 +179,10 @@ const leadSchema = z.object({
   notes: z.string().optional().default(""),
 });
 
-// ---------- rate limits (scoped) ----------
+// ---------- public submit limiter (still reasonable) ----------
 const postLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000,   // 10 minutes
-  max: 30,                     // allow more breathing room
-  keyGenerator: getClientIp,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const adminLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: isProd ? 200 : 5,
-  keyGenerator: getClientIp,
+  windowMs: 10 * 60 * 1000,
+  max: 50, // allow more submits if you test a lot
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -199,6 +203,14 @@ function requireAdmin(req, res, next) {
   return res.status(401).send("Invalid credentials");
 }
 
+// ---------- admin rate limit (env-driven) ----------
+const adminLimiter = rateLimit({
+  windowMs: ADMIN_RATE_WINDOW_MS,
+  max: ADMIN_RATE_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // apply limiter+auth to all admin routes
 app.use("/api/admin", requireAdmin, adminLimiter);
 
@@ -217,7 +229,7 @@ function getMailer() {
   mailer = nodemailer.createTransport({
     host: SMTP_HOST,
     port: Number(SMTP_PORT) || 587,
-    secure: String(SMTP_PORT) === "465",
+    secure: String(SMTP_PORT) === "465", // SSL if 465
     auth: { user: SMTP_USER, pass: SMTP_PASS },
     logger: debug,
     debug: debug,
@@ -239,12 +251,17 @@ async function sendApprovedEmail(driver) {
   const from = process.env.SMTP_FROM || `AdVehicles <${process.env.SMTP_USER}>`;
   const to = driver.email;
   const subject = "Your AdVehicles listing is approved ✅";
+  const priceLine =
+    Number(driver.monthlyRate || 0) > 0
+      ? `<p>Your agreed monthly rate is <strong>$${Number(driver.monthlyRate).toFixed(0)}/month</strong>.</p>`
+      : "";
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;line-height:1.5">
       <h2>You're live!</h2>
       <p>Hi ${driver.name.split(" ")[0] || "there"}, your <strong>${driver.carYear} ${driver.carMake} ${
     driver.carModel
   }</strong> listing is now visible.</p>
+      ${priceLine}
       <p>— AdVehicles</p>
     </div>`;
 
@@ -320,88 +337,78 @@ app.get("/api/drivers", (req, res) => {
 });
 
 // Create driver (status=pending)
-app.post("/api/drivers",
-  rateLimit({
-    windowMs: 10 * 60 * 1000,
-    max: 20,                 // per-IP create attempts per 10 min
-    keyGenerator: getClientIp,
-    standardHeaders: true,
-    legacyHeaders: false,
-  }),
-  upload.single("image"),
-  async (req, res) => {
-    try {
-      const body = { ...req.body };
+app.post("/api/drivers", postLimiter, upload.single("image"), async (req, res) => {
+  try {
+    const body = { ...req.body };
 
-      // --- Honeypot ---
-      if (typeof body.website === "string" && body.website.trim() !== "") {
-        return res.status(400).json({ error: "Bot suspected" });
-      }
-      delete body.website;
-
-      // Normalize placement → adPlacementOptions
-      if (body.placement) {
-        body.adPlacementOptions = Array.isArray(body.placement) ? body.placement : [body.placement];
-      }
-
-      // Coerce checkbox
-      body.allowLocationTracking =
-        body.allowLocationTracking === true ||
-        body.allowLocationTracking === "true" ||
-        body.allowLocationTracking === "on";
-
-      // Uploaded image → process (EXIF strip/rotate/resize) then set URL
-      if (req.file) {
-        const abs = path.join(UPLOAD_DIR, req.file.filename);
-        try {
-          await processUploadInPlace(abs);
-        } catch (imgErr) {
-          console.error("Upload processing failed:", imgErr);
-          return res.status(400).json({ error: "Invalid image upload" });
-        }
-        body.imageUrl = `/uploads/${req.file.filename}`;
-      }
-
-      // Social links nesting
-      body.socialLinks = { instagram: body.ig || "", tiktok: body.tiktok || "" };
-
-      // otherCities: "a,b,c" → ["a","b","c"]
-      if (typeof body.otherCities === "string") {
-        body.otherCities = body.otherCities.split(",").map((s) => s.trim()).filter(Boolean);
-      } else if (!Array.isArray(body.otherCities)) {
-        body.otherCities = [];
-      }
-
-      // Remove temp fields
-      delete body.ig;
-      delete body.tiktok;
-      delete body.placement;
-
-      // Validate
-      const parsed = driverSchema.safeParse(body);
-      if (!parsed.success) {
-        return res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
-      }
-
-      // Persist
-      const all = readDrivers();
-      const entry = {
-        id: "drv_" + nanoid(8),
-        createdAt: new Date().toISOString(),
-        status: "pending",
-        ...parsed.data
-      };
-      all.push(entry);
-      writeDrivers(all);
-      audit({ action: "create", id: entry.id, email: entry.email, status: "pending" });
-
-      return res.json({ ok: true, id: entry.id, status: entry.status });
-    } catch (e) {
-      console.error("Driver submit error:", e);
-      return res.status(500).json({ error: "Server error" });
+    // --- Honeypot ---
+    if (typeof body.website === "string" && body.website.trim() !== "") {
+      return res.status(400).json({ error: "Bot suspected" });
     }
+    delete body.website;
+
+    // Normalize placement → adPlacementOptions
+    if (body.placement) {
+      body.adPlacementOptions = Array.isArray(body.placement) ? body.placement : [body.placement];
+    }
+
+    // Coerce checkbox
+    body.allowLocationTracking =
+      body.allowLocationTracking === true ||
+      body.allowLocationTracking === "true" ||
+      body.allowLocationTracking === "on";
+
+    // Uploaded image → process then set URL
+    if (req.file) {
+      const abs = path.join(UPLOAD_DIR, req.file.filename);
+      try {
+        await processUploadInPlace(abs);
+      } catch (imgErr) {
+        console.error("Upload processing failed:", imgErr);
+        return res.status(400).json({ error: "Invalid image upload" });
+      }
+      body.imageUrl = `/uploads/${req.file.filename}`;
+    }
+
+    // Social links nesting
+    body.socialLinks = { instagram: body.ig || "", tiktok: body.tiktok || "" };
+
+    // otherCities: "a,b,c" → ["a","b","c"]
+    if (typeof body.otherCities === "string") {
+      body.otherCities = body.otherCities.split(",").map((s) => s.trim()).filter(Boolean);
+    } else if (!Array.isArray(body.otherCities)) {
+      body.otherCities = [];
+    }
+
+    // Remove temp fields
+    delete body.ig;
+    delete body.tiktok;
+    delete body.placement;
+
+    // Validate
+    const parsed = driverSchema.safeParse(body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Validation failed", details: parsed.error.flatten() });
+    }
+
+    // Persist
+    const all = readDrivers();
+    const entry = {
+      id: "drv_" + nanoid(8),
+      createdAt: new Date().toISOString(),
+      status: "pending",
+      ...parsed.data,
+    };
+    all.push(entry);
+    writeDrivers(all);
+    audit({ action: "create", id: entry.id, email: entry.email, status: "pending" });
+
+    return res.json({ ok: true, id: entry.id, status: entry.status });
+  } catch (e) {
+    console.error("Driver submit error:", e);
+    return res.status(500).json({ error: "Server error" });
   }
-);
+});
 
 // Leads (public "Select")
 const LEADS_FILE = path.join(DATA_DIR, "leads.json");
@@ -409,54 +416,45 @@ if (!fs.existsSync(LEADS_FILE)) fs.writeFileSync(LEADS_FILE, JSON.stringify([], 
 const readLeads = () => JSON.parse(fs.readFileSync(LEADS_FILE, "utf8") || "[]");
 const writeLeads = (a) => fs.writeFileSync(LEADS_FILE, JSON.stringify(a, null, 2));
 
-app.post("/api/leads",
-  rateLimit({
-    windowMs: 60 * 1000,
-    max: 60,                 // generous; adjust if abused
-    keyGenerator: getClientIp,
-    standardHeaders: true,
-    legacyHeaders: false,
-  }),
-  async (req, res) => {
-    const parsed = leadSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: "Invalid lead", details: parsed.error.flatten() });
+app.post("/api/leads", async (req, res) => {
+  const parsed = leadSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "Invalid lead", details: parsed.error.flatten() });
 
-    const { driverId, clientName, clientEmail, company, notes } = parsed.data;
-    const drivers = readDrivers();
-    const driver = drivers.find((d) => d.id === driverId && d.status === "approved");
-    if (!driver) return res.status(404).json({ error: "Driver not found or not approved" });
+  const { driverId, clientName, clientEmail, company, notes } = parsed.data;
+  const drivers = readDrivers();
+  const driver = drivers.find((d) => d.id === driverId && d.status === "approved");
+  if (!driver) return res.status(404).json({ error: "Driver not found or not approved" });
 
-    const leads = readLeads();
-    const lead = {
-      id: "lead_" + nanoid(8),
-      driverId,
-      clientName,
-      clientEmail,
-      company,
-      notes,
-      createdAt: new Date().toISOString(),
-    };
-    leads.push(lead);
-    writeLeads(leads);
-    audit({ action: "lead_create", leadId: lead.id, driverId });
+  const leads = readLeads();
+  const lead = {
+    id: "lead_" + nanoid(8),
+    driverId,
+    clientName,
+    clientEmail,
+    company,
+    notes,
+    createdAt: new Date().toISOString(),
+  };
+  leads.push(lead);
+  writeLeads(leads);
+  audit({ action: "lead_create", leadId: lead.id, driverId });
 
-    const tx = getMailer();
-    if (tx) {
-      tx.sendMail({
-        from: process.env.SMTP_FROM || `AdVehicles <${process.env.SMTP_USER}>`,
-        to: process.env.ADMIN_NOTIFY_TO || process.env.SMTP_USER,
-        subject: `New selection: ${driver.carYear} ${driver.carMake} ${driver.carModel} (${driver.city})`,
-        html: `<div style="font-family:Arial,Helvetica,sans-serif">Client: ${clientName} &lt;${clientEmail}&gt; ${
-          company ? "• " + company : ""
-        }<br/>Driver: ${driver.name} — ${driver.city}, ${driver.province}<br/>Notes: ${notes || "-"}</div>`,
-      })
-        .then((info) => console.log("📧 [MAIL] Lead emailed (msgId:", info?.messageId || "n/a", ")"))
-        .catch((e) => console.error("❌ [MAIL] lead error:", e.message));
-    }
-
-    res.status(201).json({ ok: true, id: lead.id });
+  const tx = getMailer();
+  if (tx) {
+    tx.sendMail({
+      from: process.env.SMTP_FROM || `AdVehicles <${process.env.SMTP_USER}>`,
+      to: process.env.ADMIN_NOTIFY_TO || process.env.SMTP_USER,
+      subject: `New selection: ${driver.carYear} ${driver.carMake} ${driver.carModel} (${driver.city})`,
+      html: `<div style="font-family:Arial,Helvetica,sans-serif">Client: ${clientName} &lt;${clientEmail}&gt; ${
+        company ? "• " + company : ""
+      }<br/>Driver: ${driver.name} — ${driver.city}, ${driver.province}<br/>Notes: ${notes || "-"}</div>`,
+    })
+      .then((info) => console.log("📧 [MAIL] Lead emailed (msgId:", info?.messageId || "n/a", ")"))
+      .catch((e) => console.error("❌ [MAIL] lead error:", e.message));
   }
-);
+
+  res.status(201).json({ ok: true, id: lead.id });
+});
 
 // ---------- ADMIN API ----------
 app.get("/api/admin/ping", requireAdmin, (_req, res) => res.json({ ok: true }));
@@ -466,6 +464,24 @@ app.get("/api/admin/drivers", requireAdmin, (req, res) => {
   let drivers = readDrivers();
   if (["pending", "approved", "rejected"].includes(status)) drivers = drivers.filter((d) => d.status === status);
   res.json({ count: drivers.length, drivers });
+});
+
+// NEW: set/update monthlyRate (used by admin UI)
+app.post("/api/admin/drivers/:id/price", requireAdmin, (req, res) => {
+  const id = req.params.id;
+  const all = readDrivers();
+  const i = all.findIndex((d) => d.id === id);
+  if (i < 0) return res.status(404).json({ error: "Not found" });
+
+  const n = Number(req.body?.monthlyRate);
+  if (!Number.isFinite(n) || n < 0 || n > 1000) {
+    return res.status(400).json({ error: "monthlyRate must be 0–1000" });
+  }
+
+  all[i].monthlyRate = n;
+  writeDrivers(all);
+  audit({ action: "set_price", id, monthlyRate: n });
+  res.json({ ok: true, id, monthlyRate: n });
 });
 
 // APPROVE — respond immediately; email in background
@@ -481,8 +497,9 @@ app.post("/api/admin/drivers/:id/approve", requireAdmin, async (req, res) => {
   writeDrivers(all);
   audit({ action: "approve", id });
 
-  res.json({ ok: true });
+  res.json({ ok: true }); // reply first
 
+  // background email
   setTimeout(() => {
     console.log("[ADMIN] Sending approval email (background) for", id);
     sendApprovedEmail(all[i]).catch((e) => console.error("❌ [ADMIN] email bg error:", e.message));
@@ -592,4 +609,5 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   console.log(`AdVehicles running on http://localhost:${PORT} (${NODE_ENV})`);
+  console.log(`[DEBUG] Rate limits: GLOBAL ${GLOBAL_RATE_MAX}/${GLOBAL_RATE_WINDOW_MS}ms; ADMIN ${ADMIN_RATE_MAX}/${ADMIN_RATE_WINDOW_MS}ms`);
 });

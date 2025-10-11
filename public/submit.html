@@ -114,11 +114,15 @@
               <label for="avgDailyDrivingHours">Avg Daily Driving Hours</label>
               <input id="avgDailyDrivingHours" name="avgDailyDrivingHours" type="number" min="0" step="0.1" />
             </div>
+
+            <!-- Monthly Rate removed: we set the rate after review -->
             <div class="field">
-              <label for="monthlyRate">Monthly Rate ($)</label>
-              <input id="monthlyRate" name="monthlyRate" type="number" min="0" value="50" />
+              <div class="muted" style="padding:10px;border:1px dashed #ddd;border-radius:8px;">
+                <strong>Monthly rate is set by AdVehicles</strong> after we review your submission.
+              </div>
             </div>
           </div>
+
           <div class="field">
             <label for="typicalRoutes">Typical Routes</label>
             <textarea id="typicalRoutes" name="typicalRoutes" rows="2" placeholder="Major roads, neighborhoods, commute pattern"></textarea>
