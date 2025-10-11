@@ -4,7 +4,6 @@ const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
 const { randomUUID } = require("crypto");
-const nanoid = (len = 8) => randomUUID().replace(/-/g, "").slice(0, len);
 const { z } = require("zod");
 const multer = require("multer");
 const helmet = require("helmet");
@@ -17,9 +16,8 @@ const PORT = process.env.PORT || 5173;
 const NODE_ENV = process.env.NODE_ENV || "production";
 const isProd = NODE_ENV === "production";
 
-// --- tiny id helper (replaces nanoid) ---
-const rid = (len = 10) =>
-  crypto.randomBytes(Math.ceil(len / 2)).toString("hex").slice(0, len);
+// --- id helper (replaces nanoid & rid) ---
+const makeId = (len = 10) => randomUUID().replace(/-/g, "").slice(0, len);
 
 // ---------- security ----------
 app.use(helmet({ crossOriginResourcePolicy: { policy: "same-site" } }));
@@ -84,7 +82,7 @@ const mask = (s) => {
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
   filename: (_req, file, cb) =>
-    cb(null, "img_" + rid(10) + path.extname(file.originalname || "").toLowerCase()),
+    cb(null, "img_" + makeId(10) + path.extname(file.originalname || "").toLowerCase()),
 });
 const upload = multer({
   storage,
@@ -406,7 +404,7 @@ app.post("/api/drivers", postLimiter, upload.single("image"), async (req, res) =
     // Persist
     const all = readDrivers();
     const entry = {
-      id: "drv_" + rid(8),
+      id: "drv_" + makeId(8),
       createdAt: new Date().toISOString(),
       status: "pending",
       ...parsed.data,
@@ -439,7 +437,7 @@ app.post("/api/leads", async (req, res) => {
 
   const leads = readLeads();
   const lead = {
-    id: "lead_" + rid(8),
+    id: "lead_" + makeId(8),
     driverId,
     clientName,
     clientEmail,
