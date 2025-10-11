@@ -3,9 +3,7 @@ const express = require("express");
 const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
-const crypto = require("crypto"); // ← replace nanoid with crypto
-const { randomUUID } = require("crypto");
-const nanoid = (len = 8) => randomUUID().replace(/-/g, "").slice(0, len);
+const nanoid = require("nanoid"); // ← replace nanoid with crypto
 const { z } = require("zod");
 const multer = require("multer");
 const helmet = require("helmet");
