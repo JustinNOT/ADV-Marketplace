@@ -190,16 +190,26 @@ const postLimiter = rateLimit({
 function requireAdmin(req, res, next) {
   const auth = req.headers.authorization || "";
   const [scheme, b64] = auth.split(" ");
-  const user = process.env.ADMIN_USER || "";
-  const pass = process.env.ADMIN_PASS || "";
-  if (scheme !== "Basic" || !b64) {
-    res.set("WWW-Authenticate", 'Basic realm="AdVehicles Admin"');
-    return res.status(401).send("Auth required");
+  const user = (process.env.ADMIN_USER || "").trim();
+  const pass = (process.env.ADMIN_PASS || "").trim();
+
+  // Only show native browser prompt if caller explicitly asks for it.
+  // Our admin UI will NOT ask for it.
+  const wantBrowserPrompt = req.get("x-use-native-auth") === "1";
+
+  function send401(msg) {
+    if (wantBrowserPrompt) {
+      res.set("WWW-Authenticate", 'Basic realm="AdVehicles Admin"');
+    }
+    return res.status(401).send(msg);
   }
+
+  if (scheme !== "Basic" || !b64) return send401("Auth required");
+
   const [u, p] = Buffer.from(b64, "base64").toString().split(":");
   if (u === user && p === pass) return next();
-  res.set("WWW-Authenticate", 'Basic realm="AdVehicles Admin"');
-  return res.status(401).send("Invalid credentials");
+
+  return send401("Invalid credentials");
 }
 
 // ---------- admin rate limit (env-driven) ----------

@@ -19,29 +19,47 @@ document.addEventListener('DOMContentLoaded', () => {
   function clearAuth() { auth=''; sessionStorage.removeItem('adv_admin_auth'); }
 
   // Raw & JSON fetchers with Authorization
-  async function apiRaw(path, opts={}) {
-    const res = await fetch(path, { ...opts, headers: { 'Authorization': auth, ...(opts.headers||{}) } });
-    const text = await res.text().catch(()=> '');
-    return { res, text };
+  // Raw & JSON fetchers with Authorization  ✅ add anti-popup headers here
+async function apiRaw(path, opts = {}) {
+  // Always include our auth + "no native auth" headers on EVERY call
+  const baseHeaders = {
+    ...(auth ? { Authorization: auth } : {}),
+    "X-Use-Native-Auth": "0",      // <-- prevents server from sending WWW-Authenticate
+    "X-Requested-With": "fetch"    // optional, makes it obvious it's XHR/fetch
+  };
+
+  const res = await fetch(path, {
+    ...opts,
+    headers: { ...baseHeaders, ...(opts.headers || {}) }
+  });
+
+  const text = await res.text().catch(() => "");
+  return { res, text };
+}
+
+async function apiJSON(path, opts = {}) {
+  const { res, text } = await apiRaw(path, {
+    ...opts,
+    headers: { "Content-Type": "application/json", ...(opts.headers || {}) }
+  });
+  if (!res.ok) {
+    if (res.status === 429) throw new Error("429 Too Many Requests — admin API limit.");
+    if (res.status === 401) throw new Error("401 Unauthorized — credentials not accepted.");
+    throw new Error(`HTTP ${res.status} ${text}`);
   }
-  async function apiJSON(path, opts={}) {
-    const { res, text } = await apiRaw(path, { ...opts, headers: { ...(opts.headers||{}), 'Content-Type':'application/json' } });
-    if (!res.ok) {
-      if (res.status === 429) throw new Error('429 Too Many Requests — admin API limit.');
-      if (res.status === 401) throw new Error('401 Unauthorized — credentials not accepted.');
-      throw new Error(`HTTP ${res.status} ${text}`);
-    }
-    try { return JSON.parse(text || '{}'); } catch { return text; }
+  try { return JSON.parse(text || "{}"); } catch { return text; }
+}
+
+async function apiGET(path) {
+  const { res, text } = await apiRaw(path);
+  if (!res.ok) {
+    if (res.status === 429) throw new Error("429 Too Many Requests — admin API limit.");
+    if (res.status === 401) throw new Error("401 Unauthorized — credentials not accepted.");
+    throw new Error(`HTTP ${res.status} ${text}`);
   }
-  async function apiGET(path) {
-    const { res, text } = await apiRaw(path);
-    if (!res.ok) {
-      if (res.status === 429) throw new Error('429 Too Many Requests — admin API limit.');
-      if (res.status === 401) throw new Error('401 Unauthorized — credentials not accepted.');
-      throw new Error(`HTTP ${res.status} ${text}`);
-    }
-    try { return JSON.parse(text || '{}'); } catch { return text; }
-  }
+  try { return JSON.parse(text || "{}"); } catch { return text; }
+}
+
 
   // DOM refs
   const loginView = $('#login');
