@@ -3,100 +3,169 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="robots" content="noindex,nofollow">
-  <title>AdVehicles Marketplace — Listings</title>
+  <title>AdVehicles — Local, measurable car ads</title>
+
+  <!-- Your base styles -->
   <link rel="stylesheet" href="/css/styles.css" />
+  <!-- Accent/theme overrides -->
+  <link rel="stylesheet" href="/css/theme.css" />
+
+  <style>
+    /* Layout helpers local to this page */
+    .container{max-width:1100px;margin:0 auto;padding:0 20px}
+    .site-header{border-bottom:1px solid var(--border-1)}
+    .nav{display:flex;justify-content:space-between;align-items:center;height:62px}
+    .brand{font-weight:700;text-decoration:none;color:var(--text-1)}
+    .nav-links{display:flex;gap:16px;align-items:center}
+    .nav a{color:var(--text-1);opacity:.9;text-decoration:none;padding:8px 10px;border-radius:10px}
+    .nav a:hover{background:rgba(255,255,255,.06);opacity:1}
+
+    .hero{padding:44px 0}
+    .hero h1{font-size:clamp(28px,3.5vw,44px);margin:0 0 10px}
+    .hero p{margin:0 0 14px;color:var(--text-2);max-width:65ch}
+    .btnrow{display:flex;gap:12px;flex-wrap:wrap}
+
+    .section{padding:28px 0}
+    .split{display:grid;gap:18px;grid-template-columns:1fr 1fr}
+    @media (max-width:880px){.split{grid-template-columns:1fr}}
+
+    /* Refined step list */
+    .steps{display:grid;gap:10px;margin:12px 0 0;padding:0}
+    .step{list-style:none;display:flex;gap:12px;align-items:flex-start;
+          padding:12px 14px;border:1px solid var(--border-1);border-radius:14px;
+          background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.03));}
+    .badge{flex:0 0 auto;width:26px;height:26px;border-radius:999px;display:grid;
+           place-items:center;font-weight:700;background:var(--surface-1);border:1px solid var(--border-1);opacity:.9}
+
+    .faq details{background:var(--surface-2);border:1px solid var(--border-1);border-radius:12px;padding:12px}
+    .faq summary{cursor:pointer;font-weight:600}
+    .site-footer{border-top:1px solid var(--border-1);padding:24px 0;color:var(--text-2);text-align:center}
+    /* Slim top contact bar (respects existing theme vars) */
+    .top-contact{background:#0f1722;border-bottom:1px solid var(--border-1)}
+    .top-contact .inner{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:6px 0}
+    .top-contact .contact-link{padding:6px 10px;line-height:1;text-decoration:none}
+  </style>
 </head>
 <body>
+  <div class="top-contact">
+    <div class="container inner">
+      <a href="/contact.html" class="btn contact-link">Contact</a>
+    </div>
+  </div>
   <header class="site-header">
-    <h1>AdVehicles Marketplace</h1>
-    <nav>
-      <a href="/index.html" class="active">Browse</a>
-      <a href="/submit.html">Become a Driver</a>
-    </nav>
+    <div class="container">
+      <nav class="nav">
+        <a class="brand" href="/">AdVehicles</a>
+        <div class="nav-links">
+          <a href="/browse.html">Browse</a>
+          <a href="/contact.html">Contact</a>
+          <a class="btn primary" href="/submit.html">Become a Driver</a>
+        </div>
+      </nav>
+    </div>
   </header>
 
   <main class="container">
-    <section class="filters-card">
-      <h2>Filters</h2>
-      <div class="filters-grid">
-        <div class="field">
-          <label for="fCity">City</label>
-          <select id="fCity"><option value="">All</option></select>
-        </div>
-        <div class="field">
-          <label for="fProvince">Province/State</label>
-          <input id="fProvince" type="text" placeholder="e.g., ON" />
-        </div>
-        <div class="field">
-          <label for="fMake">Make</label>
-          <input id="fMake" type="text" placeholder="Toyota, Honda…" />
-        </div>
-        <div class="field">
-          <label for="fModel">Model</label>
-          <input id="fModel" type="text" placeholder="Corolla, Civic…" />
-        </div>
-        <div class="field">
-          <label for="fMinYear">Min Year</label>
-          <input id="fMinYear" type="number" min="1990" />
-        </div>
-        <div class="field">
-          <label for="fMaxYear">Max Year</label>
-          <input id="fMaxYear" type="number" />
-        </div>
-        <div class="field">
-          <label for="fMinMiles">Min Weekly Mileage</label>
-          <input id="fMinMiles" type="number" min="0" />
-        </div>
-        <div class="field">
-          <label for="fMaxMiles">Max Weekly Mileage</label>
-          <input id="fMaxMiles" type="number" min="0" />
-        </div>
-        <div class="field">
-          <label for="fMinRate">Min Monthly Rate</label>
-          <input id="fMinRate" type="number" min="0" />
-        </div>
-        <div class="field">
-          <label for="fMaxRate">Max Monthly Rate</label>
-          <input id="fMaxRate" type="number" min="0" />
-        </div>
-        <div class="field">
-          <label for="fPlacement">Ad Placement</label>
-          <select id="fPlacement">
-            <option value="">Any</option>
-            <option value="Rear Window">Rear Window</option>
-            <option value="Side Doors">Side Doors</option>
-            <option value="Hood">Hood</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="fSort">Sort</label>
-          <select id="fSort">
-            <option value="latest:desc">Latest</option>
-            <option value="city:asc">City (A→Z)</option>
-            <option value="mileage:desc">Mileage (High→Low)</option>
-            <option value="rate:asc">Rate (Low→High)</option>
-            <option value="year:desc">Year (New→Old)</option>
-          </select>
-        </div>
-      </div>
-      <div class="filters-actions">
-        <button id="applyBtn">Apply</button>
-        <button id="resetBtn" class="ghost">Reset</button>
+    <!-- Intro banner (no location mentions) -->
+    <section class="card" style="padding:10px 14px;margin:16px 0;background:#101c29;border-color:#1f3852">
+      <strong>Now recruiting new drivers and accepting client campaigns.</strong>
+      <a class="btn" href="/submit.html" style="margin-left:10px">Apply to Drive</a>
+    </section>
+
+    <!-- HERO (no image) -->
+    <section class="hero">
+      <h1>Local, measurable car ads that actually move.</h1>
+      <p>AdVehicles connects businesses with everyday drivers. Place clean, removable decals on verified cars and reach the neighbourhoods that matter.</p>
+      <div class="btnrow">
+        <a class="btn primary" href="/browse.html">Browse Drivers</a>
+        <a class="btn" href="/submit.html">Become a Driver</a>
       </div>
     </section>
 
-    <section>
-      <h2>Available Drivers</h2>
-      <div id="resultsMeta" class="results-meta"></div>
-      <div id="cards" class="cards"></div>
+    <!-- TWO TRACKS -->
+    <section class="section split">
+      <div class="card" style="padding:18px">
+        <h2>For Clients</h2>
+        <p style="color:var(--text-2)">Target specific areas and commuter corridors without citywide billboard costs.</p>
+        <ul class="steps">
+          <li class="step"><span class="badge">1</span><span>Filter drivers by city, car, and weekly mileage.</span></li>
+          <li class="step"><span class="badge">2</span><span>Choose ad placement and monthly budget.</span></li>
+          <li class="step"><span class="badge">3</span><span>We print and ship decals. Driver installs—campaign goes live.</span></li>
+        </ul>
+        <a class="btn primary" href="/browse.html" style="margin-top:12px">Start Browsing</a>
+      </div>
+
+      <div class="card" style="padding:18px">
+        <h2>For Drivers</h2>
+        <p style="color:var(--text-2)">Earn monthly cash with removable, paint-safe decals. Keep your car’s finish safe.</p>
+        <ul class="steps">
+          <li class="step"><span class="badge">1</span><span>Tell us your city, typical routes, and weekly mileage.</span></li>
+          <li class="step"><span class="badge">2</span><span>Get matched with local businesses.</span></li>
+          <li class="step"><span class="badge">3</span><span>Install decals (we provide) and receive payouts.</span></li>
+        </ul>
+        <a class="btn" href="/submit.html" style="margin-top:12px">Apply to Drive</a>
+      </div>
+    </section>
+
+    <!-- PRICING -->
+    <section class="section card" style="padding:18px">
+      <h2>Simple pricing</h2>
+      <div class="split">
+        <div class="card" style="padding:16px">
+          <h3>Clients</h3>
+          <ul class="steps">
+            <li class="step"><span class="badge">•</span><span><strong>Flexible pricing:</strong> Let’s discuss routes, mileage, and placements to fit your goals.</span></li>
+            <li class="step"><span class="badge">•</span><span><strong>Decals included:</strong> Premium removable vinyl, printed locally.</span></li>
+            <li class="step"><span class="badge">•</span><span><strong>Bundles:</strong> Multi-car and corridor-focused options available.</span></li>
+          </ul>
+          <a class="btn primary" href="/browse.html" style="margin-top:12px">See Drivers</a>
+        </div>
+        <div class="card" style="padding:16px">
+          <h3>Drivers</h3>
+          <ul class="steps">
+            <li class="step"><span class="badge">•</span><span><strong>Earnings:</strong> $40–$80 / month per decal (mileage-based).</span></li>
+            <li class="step"><span class="badge">•</span><span><strong>Decals:</strong> Provided. Removable, paint-safe vinyl.</span></li>
+            <li class="step"><span class="badge">•</span><span><strong>Payouts:</strong> Bi-weekly via e-Transfer or monthly via ACH.</span></li>
+          </ul>
+          <a class="btn" href="/submit.html" style="margin-top:12px">Apply Now</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ (uses “verify” wording) -->
+    <section class="section faq">
+      <h2>FAQ</h2>
+      <details open>
+        <summary>Are decals removable?</summary>
+        <p>Yes—premium paint-safe vinyl. No residue when removed correctly.</p>
+      </details>
+      <details>
+        <summary>What areas do you cover?</summary>
+        <p>We operate where there is demand. Tell us your target neighbourhoods and we’ll match suitable drivers.</p>
+      </details>
+      <details>
+        <summary>How do you verify drivers?</summary>
+        <p>We confirm car photos, city, approximate weekly mileage, and route suitability for campaign goals.</p>
+      </details>
+      <details>
+        <summary>Who prints the decals?</summary>
+        <p>Local vinyl print partners. Printing and delivery are included in campaign quotes.</p>
+      </details>
+      <details>
+        <summary>Can I cancel anytime?</summary>
+        <p>Yes—month-to-month campaigns. Remove decals and you’re done.</p>
+      </details>
+      <details>
+        <summary>Do clients get reporting?</summary>
+        <p>Yes—basic mileage and coverage summaries for each active campaign.</p>
+      </details>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>© 2025 AdVehicles • <a href="/privacy.html">Privacy</a> • <a href="/terms.html">Terms</a> • <a href="/admin.html">Admin</a></p>
+    <div class="container">
+      <p>© 2025 AdVehicles • <a href="/privacy.html">Privacy</a> • <a href="/terms.html">Terms</a></p>
+    </div>
   </footer>
-
-  <script src="/js/listings.js"></script>
 </body>
 </html>

@@ -1,0 +1,133 @@
+/* public/css/theme.css — lightweight theme override */
+:root{
+  /* Neutral dark UI with a soft blue accent */
+  --bg:#0f1115;
+  --surface-1:#12141b;
+  --surface-2:#171a23;
+  --border-1:#262b36;
+  --text-1:#e8ebf1;
+  --text-2:#a8b0bf;
+
+  /* New accent (replaces the mint/green): */
+  --accent:#7CC4FF;           /* buttons, CTAs */
+  --accent-contrast:#0b1220;  /* text on accent */
+  --accent-hover:#A8D6FF;
+}
+
+/* Basic elements (keeps your existing classes; only improves contrast) */
+html,body{background:var(--bg);color:var(--text-1);}
+.card{background:var(--surface-2);border:1px solid var(--border-1);border-radius:16px;}
+.btn{display:inline-block;padding:10px 14px;border:1px solid var(--border-1);border-radius:12px;text-decoration:none;color:var(--text-1)}
+.btn.primary{background:var(--accent);border-color:transparent;color:var(--accent-contrast)}
+.btn.primary:hover{background:var(--accent-hover)}
+.ghost{display:inline-block;padding:10px 14px;border:1px dashed var(--border-1);border-radius:12px;text-decoration:none;color:var(--text-1)}
+.nav a:hover,.nav a.active{background:rgba(255,255,255,.06);border-radius:10px}
+
+/* “Back to Home” pill used on browse & drivers pages */
+.back-home{
+  position:fixed; top:14px; left:14px; z-index:9999;
+  background:var(--surface-2); color:var(--text-1);
+  padding:8px 12px; border:1px solid var(--border-1); border-radius:999px;
+  text-decoration:none; font-weight:600; opacity:.95;
+}
+.back-home:hover{opacity:1}
+
+/* === Readability & de-saturate overrides === */
+:root{
+  --text-1:#E6ECF3;
+  --text-2:#A6B1C2;
+  --accent:#5AA7FF;         /* softer blue */
+  --accent-hover:#86C1FF;
+}
+
+/* Kill legacy gradients and high-sat styles coming from base CSS */
+.btn, .ghost, .card .btn{
+  background:none !important;
+  background-image:none !important;
+}
+.btn{border:1px solid var(--border-1); color:var(--text-1)}
+.btn:hover{background:rgba(255,255,255,.06) !important}
+
+/* Primary CTA stays solid (no gradient) */
+.btn.primary{
+  background:var(--accent) !important;
+  border-color:transparent !important;
+  color:var(--accent-contrast) !important;
+}
+.btn.primary:hover{background:var(--accent-hover) !important}
+
+/* Links—stop bright browser blue */
+a{color:var(--text-1)}
+a:hover{text-decoration:underline}
+
+/* ===== Global button refresh (append at end of /css/theme.css) ===== */
+:root{
+  /* Button palette (WCAG-friendly on dark bg) */
+  --btn-bg:#1B2432;
+  --btn-text:#E8EDF4;
+  --btn-border:#2A3444;
+  --btn-hover-bg:#242F41;
+  --btn-active-bg:#1A2130;
+
+  --btn-primary-bg:#59A8FF;      /* softer blue */
+  --btn-primary-text:#0B1220;
+  --btn-primary-hover:#86C3FF;
+  --btn-primary-active:#6DB6FF;
+
+  --btn-ghost-hover:rgba(255,255,255,.06);
+  --btn-focus:#7CC4FF;           /* focus ring */
+}
+
+/* Base button */
+.btn, .ghost, button, input[type=button], input[type=submit]{
+  -webkit-appearance:none; appearance:none;
+  display:inline-flex; align-items:center; justify-content:center;
+  gap:8px; padding:10px 14px; line-height:1.1;
+  border-radius:12px; border:1px solid var(--btn-border);
+  background:var(--btn-bg) !important; color:var(--btn-text);
+  text-decoration:none; font-weight:600; cursor:pointer;
+  box-shadow:0 1px 0 rgba(0,0,0,.25), inset 0 0 0 999px transparent !important;
+  transition:background .15s ease, border-color .15s ease, transform .02s ease;
+}
+
+/* Hover/active */
+.btn:hover, .ghost:hover, button:hover{
+  background:var(--btn-hover-bg) !important;
+}
+.btn:active, .ghost:active, button:active{
+  background:var(--btn-active-bg) !important;
+  transform:translateY(0.5px);
+}
+
+/* Primary CTA */
+.btn.primary{
+  background:var(--btn-primary-bg) !important;
+  border-color:transparent !important;
+  color:var(--btn-primary-text) !important;
+}
+.btn.primary:hover{ background:var(--btn-primary-hover) !important; }
+.btn.primary:active{ background:var(--btn-primary-active) !important; }
+
+/* Ghost (subtle) */
+.ghost{
+  background:transparent !important;
+  border-style:dashed;
+}
+.ghost:hover{ background:var(--btn-ghost-hover) !important; }
+
+/* Disabled state */
+.btn[disabled], .ghost[disabled], button[disabled], .btn:disabled{
+  opacity:.55; cursor:not-allowed; filter:saturate(.7);
+}
+
+/* Focus ring for keyboard users */
+.btn:focus-visible, .ghost:focus-visible, button:focus-visible{
+  outline:2px solid var(--btn-focus);
+  outline-offset:2px;
+  box-shadow:0 0 0 2px rgba(0,0,0,.35);
+}
+
+/* Nuke any leftover gradients from older CSS */
+.btn, .ghost{
+  background-image:none !important;
+}

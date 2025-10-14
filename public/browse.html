@@ -4,20 +4,22 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="robots" content="noindex,nofollow">
-  <title>AdVehicles Marketplace — Listings</title>
+  <title>AdVehicles — Listings</title>
+
   <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/theme.css" />
 </head>
 <body>
   <header class="site-header">
-    <h1>AdVehicles Marketplace</h1>
+    <h1><a class="brand" href="/" style="text-decoration:none;color:inherit">AdVehicles</a></h1>
     <nav>
-      <a href="/index.html" class="active">Browse</a>
+      <a href="/browse.html" class="active">Browse</a>
       <a href="/submit.html">Become a Driver</a>
     </nav>
   </header>
 
   <main class="container">
-    <section class="filters-card">
+    <section class="filters-card card" style="padding:18px">
       <h2>Filters</h2>
       <div class="filters-grid">
         <div class="field">
@@ -80,9 +82,9 @@
           </select>
         </div>
       </div>
-      <div class="filters-actions">
-        <button id="applyBtn">Apply</button>
-        <button id="resetBtn" class="ghost">Reset</button>
+      <div class="filters-actions" style="display:flex;gap:10px;flex-wrap:wrap">
+        <button id="applyBtn" class="btn primary">Apply</button>
+        <button id="resetBtn" class="ghost btn">Reset</button>
       </div>
     </section>
 
