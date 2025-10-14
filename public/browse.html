@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex,nofollow">
+  <title>AdVehicles Marketplace — Listings</title>
+  <link rel="stylesheet" href="/css/styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>AdVehicles Marketplace</h1>
+    <nav>
+      <a href="/index.html" class="active">Browse</a>
+      <a href="/submit.html">Become a Driver</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="filters-card">
+      <h2>Filters</h2>
+      <div class="filters-grid">
+        <div class="field">
+          <label for="fCity">City</label>
+          <select id="fCity"><option value="">All</option></select>
+        </div>
+        <div class="field">
+          <label for="fProvince">Province/State</label>
+          <input id="fProvince" type="text" placeholder="e.g., ON" />
+        </div>
+        <div class="field">
+          <label for="fMake">Make</label>
+          <input id="fMake" type="text" placeholder="Toyota, Honda…" />
+        </div>
+        <div class="field">
+          <label for="fModel">Model</label>
+          <input id="fModel" type="text" placeholder="Corolla, Civic…" />
+        </div>
+        <div class="field">
+          <label for="fMinYear">Min Year</label>
+          <input id="fMinYear" type="number" min="1990" />
+        </div>
+        <div class="field">
+          <label for="fMaxYear">Max Year</label>
+          <input id="fMaxYear" type="number" />
+        </div>
+        <div class="field">
+          <label for="fMinMiles">Min Weekly Mileage</label>
+          <input id="fMinMiles" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label for="fMaxMiles">Max Weekly Mileage</label>
+          <input id="fMaxMiles" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label for="fMinRate">Min Monthly Rate</label>
+          <input id="fMinRate" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label for="fMaxRate">Max Monthly Rate</label>
+          <input id="fMaxRate" type="number" min="0" />
+        </div>
+        <div class="field">
+          <label for="fPlacement">Ad Placement</label>
+          <select id="fPlacement">
+            <option value="">Any</option>
+            <option value="Rear Window">Rear Window</option>
+            <option value="Side Doors">Side Doors</option>
+            <option value="Hood">Hood</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="fSort">Sort</label>
+          <select id="fSort">
+            <option value="latest:desc">Latest</option>
+            <option value="city:asc">City (A→Z)</option>
+            <option value="mileage:desc">Mileage (High→Low)</option>
+            <option value="rate:asc">Rate (Low→High)</option>
+            <option value="year:desc">Year (New→Old)</option>
+          </select>
+        </div>
+      </div>
+      <div class="filters-actions">
+        <button id="applyBtn">Apply</button>
+        <button id="resetBtn" class="ghost">Reset</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Available Drivers</h2>
+      <div id="resultsMeta" class="results-meta"></div>
+      <div id="cards" class="cards"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2025 AdVehicles • <a href="/privacy.html">Privacy</a> • <a href="/terms.html">Terms</a> • <a href="/admin.html">Admin</a></p>
+  </footer>
+
+  <script src="/js/listings.js"></script>
+</body>
+</html>
