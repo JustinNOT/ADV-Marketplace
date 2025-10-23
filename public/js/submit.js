@@ -1,37 +1,49 @@
-const form = document.getElementById("driverForm");
-let submitting = false;
+// public/js/submit.js
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('driverForm');
+  if (!form) return;
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (submitting) return;
-  submitting = true;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-  const fd = new FormData(form);
-
-  // Ensure monthlyRate is NOT sent (field was removed from HTML, but belt & suspenders)
-  fd.delete("monthlyRate");
-
-  // normalize checkbox boolean
-  fd.delete("allowLocationTracking");
-  fd.append(
-    "allowLocationTracking",
-    document.getElementById("allowLocationTracking").checked ? "true" : "false"
-  );
-
-  try {
-    const res = await fetch("/api/drivers", { method: "POST", body: fd });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      console.error(data);
-      alert("Validation failed. Please check your inputs.");
-      submitting = false;
-      return;
+    // Validate image client-side to match server limits (5MB, images only)
+    const fileInput = form.querySelector('#image');
+    if (fileInput && fileInput.files && fileInput.files[0]) {
+      const f = fileInput.files[0];
+      if (f.size > 5 * 1024 * 1024) {
+        alert('Image too large (max 5MB). Please pick a smaller file.');
+        return;
+      }
+      // Allow common image/*; if you want HEIC, we can handle that server-side separately
+      if (!f.type || !f.type.startsWith('image/')) {
+        alert('Only image files are allowed.');
+        return;
+      }
     }
-    alert("Thanks! Your application was received and is awaiting approval.");
-    window.location.href = "/index.html";
-  } catch (err) {
-    console.error(err);
-    alert("Something went wrong. Try again.");
-    submitting = false;
-  }
+
+    // Build FormData to ensure multipart/form-data
+    const fd = new FormData(form);
+
+    try {
+      const res = await fetch('/api/drivers', {
+        method: 'POST',
+        body: fd,
+      });
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = { ok:false, error:text }; }
+
+      if (!res.ok || !data?.ok) {
+        const msg = (data && data.error) ? data.error : `Upload failed (HTTP ${res.status})`;
+        alert(msg);
+        return;
+      }
+
+      alert('Thanks! Your submission was received.');
+      form.reset();
+    } catch (err) {
+      console.error('Submit error', err);
+      alert('Network or server error submitting the form.');
+    }
+  });
 });

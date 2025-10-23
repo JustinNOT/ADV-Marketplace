@@ -18,48 +18,46 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function clearAuth() { auth=''; sessionStorage.removeItem('adv_admin_auth'); }
 
-  // Raw & JSON fetchers with Authorization
   // Raw & JSON fetchers with Authorization  ✅ add anti-popup headers here
-async function apiRaw(path, opts = {}) {
-  // Always include our auth + "no native auth" headers on EVERY call
-  const baseHeaders = {
-    ...(auth ? { Authorization: auth } : {}),
-    "X-Use-Native-Auth": "0",      // <-- prevents server from sending WWW-Authenticate
-    "X-Requested-With": "fetch"    // optional, makes it obvious it's XHR/fetch
-  };
+  async function apiRaw(path, opts = {}) {
+    // Always include our auth + "no native auth" headers on EVERY call
+    const baseHeaders = {
+      ...(auth ? { Authorization: auth } : {}),
+      "X-Use-Native-Auth": "0",      // <-- prevents server from sending WWW-Authenticate
+      "X-Requested-With": "fetch"    // optional, makes it obvious it's XHR/fetch
+    };
 
-  const res = await fetch(path, {
-    ...opts,
-    headers: { ...baseHeaders, ...(opts.headers || {}) }
-  });
+    const res = await fetch(path, {
+      ...opts,
+      headers: { ...baseHeaders, ...(opts.headers || {}) }
+    });
 
-  const text = await res.text().catch(() => "");
-  return { res, text };
-}
-
-async function apiJSON(path, opts = {}) {
-  const { res, text } = await apiRaw(path, {
-    ...opts,
-    headers: { "Content-Type": "application/json", ...(opts.headers || {}) }
-  });
-  if (!res.ok) {
-    if (res.status === 429) throw new Error("429 Too Many Requests — admin API limit.");
-    if (res.status === 401) throw new Error("401 Unauthorized — credentials not accepted.");
-    throw new Error(`HTTP ${res.status} ${text}`);
+    const text = await res.text().catch(() => "");
+    return { res, text };
   }
-  try { return JSON.parse(text || "{}"); } catch { return text; }
-}
 
-async function apiGET(path) {
-  const { res, text } = await apiRaw(path);
-  if (!res.ok) {
-    if (res.status === 429) throw new Error("429 Too Many Requests — admin API limit.");
-    if (res.status === 401) throw new Error("401 Unauthorized — credentials not accepted.");
-    throw new Error(`HTTP ${res.status} ${text}`);
+  async function apiJSON(path, opts = {}) {
+    const { res, text } = await apiRaw(path, {
+      ...opts,
+      headers: { "Content-Type": "application/json", ...(opts.headers || {}) }
+    });
+    if (!res.ok) {
+      if (res.status === 429) throw new Error("429 Too Many Requests — admin API limit.");
+      if (res.status === 401) throw new Error("401 Unauthorized — credentials not accepted.");
+      throw new Error(`HTTP ${res.status} ${text}`);
+    }
+    try { return JSON.parse(text || "{}"); } catch { return text; }
   }
-  try { return JSON.parse(text || "{}"); } catch { return text; }
-}
 
+  async function apiGET(path) {
+    const { res, text } = await apiRaw(path);
+    if (!res.ok) {
+      if (res.status === 429) throw new Error("429 Too Many Requests — admin API limit.");
+      if (res.status === 401) throw new Error("401 Unauthorized — credentials not accepted.");
+      throw new Error(`HTTP ${res.status} ${text}`);
+    }
+    try { return JSON.parse(text || "{}"); } catch { return text; }
+  }
 
   // DOM refs
   const loginView = $('#login');
@@ -117,6 +115,7 @@ async function apiGET(path) {
           <div class="muted">${d.carYear} ${escapeHtml(d.carMake)} ${escapeHtml(d.carModel)} • mileage ${Number(d.weeklyMileage||0)}</div>
           <div class="muted">Status: <span class="pill">${d.status}</span> Created: ${new Date(d.createdAt).toLocaleString()}</div>
           ${d.approvedAt ? `<div class="muted">Approved: ${new Date(d.approvedAt).toLocaleString()}</div>` : ''}
+          ${d.mechanic ? `<div class="muted">Mechanic: ${escapeHtml(d.mechanic)}</div>` : ''}
         </div>
         <div>${d.imageUrl ? `<img class="thumb" src="${d.imageUrl}" alt="car" />` : ''}</div>
       </div>
@@ -129,6 +128,23 @@ async function apiGET(path) {
         <button class="danger" id="btn_reject_${d.id}"    type="button" ${d.status==='rejected'?'disabled':''}>Reject</button>
         <button class="danger" id="btn_delete_${d.id}"    type="button">Delete</button>
       </div>
+
+      <div class="row" style="margin-top:10px">
+        <label>Mechanic:
+          <input id="assign_${d.id}" placeholder="slug e.g. orangeautoservices" value="${escapeHtml(d.mechanic || '')}" style="width:260px">
+        </label>
+        <button class="ok" id="btn_assign_${d.id}" type="button">Assign mechanic</button>
+      </div>
+
+      <!-- All fields viewer -->
+      <details style="margin-top:10px;">
+        <summary>All fields</summary>
+        <div class="grid-2" id="kv_${d.id}" style="margin-top:8px;"></div>
+        <details style="margin-top:8px;">
+          <summary>Raw JSON</summary>
+          <pre id="json_${d.id}"></pre>
+        </details>
+      </details>
     `;
 
     // actions
@@ -190,7 +206,58 @@ async function apiGET(path) {
       await loadDrivers();
     });
 
+    // assign mechanic
+    wrap.querySelector(`#btn_assign_${d.id}`)?.addEventListener('click', async () => {
+      const input = wrap.querySelector(`#assign_${d.id}`);
+      const slug = (input?.value || '').trim();
+      if (!slug) return alert('Enter a mechanic slug (e.g., orangeautoservices)');
+      try {
+        const { res, text } = await apiRaw(`/api/admin/drivers/${d.id}/assign`, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ mechanic: slug })
+        });
+        dbg('Assign mechanic', { id: d.id, mechanic: slug, status: res.status, body: text });
+        if (!res.ok) {
+          if (res.status === 400) return alert('Mechanic slug not found. Add it to data/mechanics.json first.');
+          return alert(`Assign failed: ${res.status} ${text}`);
+        }
+        await loadDrivers();
+      } catch (e) { alert(e.message); }
+    });
+
+    // ---- render "All fields" section (key/value + raw JSON)
+    (function renderEverything() {
+      const kv = wrap.querySelector('#kv_' + d.id);
+      const pre = wrap.querySelector('#json_' + d.id);
+      if (kv) {
+        const flat = flatten(d);
+        kv.innerHTML = Object.keys(flat).sort().map((k) => {
+          const val = flat[k];
+          const show = (typeof val === 'object' && val !== null)
+            ? escapeHtml(JSON.stringify(val))
+            : escapeHtml(String(val ?? ''));
+          return `<div class="field"><label style="font-weight:600">${escapeHtml(k)}</label><div class="muted">${show}</div></div>`;
+        }).join('');
+      }
+      if (pre) pre.textContent = JSON.stringify(d, null, 2);
+    })();
+
     return wrap;
+  }
+
+  // tiny flattener for nested objects/arrays (e.g., socialLinks.instagram)
+  function flatten(obj, prefix = '', out = {}) {
+    Object.keys(obj || {}).forEach((key) => {
+      const v = obj[key];
+      const p = prefix ? `${prefix}.${key}` : key;
+      if (v && typeof v === 'object' && !Array.isArray(v)) {
+        flatten(v, p, out);
+      } else {
+        out[p] = v;
+      }
+    });
+    return out;
   }
 
   async function loadDrivers() {

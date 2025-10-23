@@ -50,10 +50,15 @@ const AUDIT_FILE = path.join(DATA_DIR, "audit.log");
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(DATA_DIR, "uploads");
 const LEGACY_UPLOAD_DIR = path.join(ROOT, "uploads");
 
+// [MECH] mechanics store file
+const MECH_FILE = path.join(DATA_DIR, "mechanics.json"); // will hold [{slug,username,password,...}]
+
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(LEGACY_UPLOAD_DIR, { recursive: true });
 if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2), "utf8");
+// [MECH] init mechanics.json if missing (empty array by default to avoid breaking anything)
+if (!fs.existsSync(MECH_FILE)) fs.writeFileSync(MECH_FILE, JSON.stringify([], null, 2), "utf8");
 
 // ---------- health probe ----------
 app.get("/healthz", (_req, res) => {
@@ -77,6 +82,13 @@ const mask = (s) => {
   if (at > 1) return str[0] + "***" + str.slice(at - 1);
   return str.slice(0, 2) + "***";
 };
+
+// [MECH] mechanic helpers
+const readMechanics = () => {
+  try { return JSON.parse(fs.readFileSync(MECH_FILE, "utf8")); } catch { return []; }
+};
+const writeMechanics = (arr) => fs.writeFileSync(MECH_FILE, JSON.stringify(arr, null, 2), "utf8");
+const findMechanicBySlug = (slug) => readMechanics().find((m) => (m.slug || "") === slug);
 
 // ---------- uploads (serve both old & new) ----------
 const storage = multer.diskStorage({
@@ -130,7 +142,7 @@ const nRange = (a, b) => z.coerce.number().min(a).max(b);
 const driverSchema = z.object({
   name: sReq(MAX.NAME),
   email: sReq(MAX.EMAIL).email(),
-  phone: sOpt(MAX.PHONE),
+  phone: sOpt(MAX.PHONE), // keep optional to avoid breaking your current functionality
 
   city: sReq(MAX.CITY),
   province: sReq(MAX.PROVINCE),
@@ -167,6 +179,9 @@ const driverSchema = z.object({
     })
     .optional()
     .default({ instagram: "", tiktok: "" }),
+
+  // [MECH] accept mechanic on driver record (optional here to preserve current behavior)
+  mechanic: z.string().trim().max(64).optional().default(null),
 });
 
 const leadSchema = z.object({
@@ -209,6 +224,27 @@ function requireAdmin(req, res, next) {
   if (u === user && p === pass) return next();
 
   return send401("Invalid credentials");
+}
+
+// [MECH] mechanic Basic Auth (per-request using slug)
+function requireMechanic(req, res, next) {
+  try {
+    const slug = String(req.query.slug || req.params.slug || "").trim();
+    if (!slug) return res.status(400).json({ error: "Missing slug" });
+    const mech = findMechanicBySlug(slug);
+    if (!mech || mech.active === false) return res.status(404).json({ error: "Mechanic not found" });
+
+    const h = req.headers["authorization"] || "";
+    if (!h.startsWith("Basic ")) return res.status(401).set("WWW-Authenticate", "Basic").json({ error: "Auth required" });
+    const [u, p] = Buffer.from(h.replace("Basic ", ""), "base64").toString("utf8").split(":", 2);
+    if (u !== (mech.username || mech.slug) || p !== mech.password) return res.status(401).json({ error: "Invalid credentials" });
+
+    req.mech = mech;
+    next();
+  } catch (e) {
+    console.error("Mechanic auth error:", e);
+    return res.status(401).json({ error: "Unauthorized" });
+  }
 }
 
 // ---------- admin rate limit (env-driven) ----------
@@ -466,6 +502,17 @@ app.post("/api/leads", async (req, res) => {
   res.status(201).json({ ok: true, id: lead.id });
 });
 
+// ---------- [MECH] MECHANIC API ----------
+app.get("/api/mech/ping", requireMechanic, (req, res) => {
+  res.json({ ok: true, slug: req.mech.slug, name: req.mech.name || req.mech.slug });
+});
+
+app.get("/api/mech/drivers", requireMechanic, (req, res) => {
+  const mechSlug = req.mech.slug;
+  const drivers = readDrivers().filter((d) => (d.mechanic || "") === mechSlug);
+  res.json({ count: drivers.length, drivers });
+});
+
 // ---------- ADMIN API ----------
 app.get("/api/admin/ping", requireAdmin, (_req, res) => res.json({ ok: true }));
 
@@ -547,6 +594,24 @@ app.delete("/api/admin/drivers/:id", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// [MECH] assign/clear mechanic from admin
+app.post("/api/admin/drivers/:id/assign", requireAdmin, (req, res) => {
+  const id = req.params.id;
+  const mech = String(req.body?.mechanic || "").trim();
+  const all = readDrivers();
+  const i = all.findIndex((d) => d.id === id);
+  if (i < 0) return res.status(404).json({ error: "Not found" });
+
+  if (mech && !findMechanicBySlug(mech)) {
+    return res.status(400).json({ error: "Mechanic slug not found" });
+  }
+
+  all[i].mechanic = mech || null;
+  writeDrivers(all);
+  audit({ action: "assign_mechanic", id, mechanic: mech || null });
+  res.json({ ok: true, id, mechanic: mech || null });
+});
+
 // --- Mailer debug endpoints (require admin) ---
 app.get("/api/admin/mailer-verify", requireAdmin, async (_req, res) => {
   const tx = getMailer();
@@ -598,6 +663,18 @@ app.post("/api/admin/mailer-test", requireAdmin, async (_req, res) => {
 // ---------- static ----------
 app.use(express.static(PUBLIC_DIR));
 app.get("/", (_req, res) => res.sendFile(path.join(PUBLIC_DIR, "index.html")));
+
+// [MECH] vanity route for mechanics (must be AFTER static; BEFORE 404)
+app.get("/:slug", (req, res, next) => {
+  const slug = req.params.slug;
+  // if a real static file/dir exists (e.g., /privacy.html), let static/next handle it
+  const staticPath = path.join(PUBLIC_DIR, slug);
+  if (fs.existsSync(staticPath)) return next();
+
+  const mech = findMechanicBySlug(slug);
+  if (!mech) return next(); // not a mechanic -> fall through to 404 or other routes
+  return res.sendFile(path.join(PUBLIC_DIR, "mechanic.html"));
+});
 
 // ---------- error handler ----------
 app.use((err, req, res, _next) => {

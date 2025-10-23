@@ -211,5 +211,41 @@
       "instagram": "",
       "tiktok": ""
     }
+  },
+  {
+    "id": "drv_7b49822f",
+    "createdAt": "2025-10-23T00:31:15.274Z",
+    "status": "pending",
+    "name": "George Fan",
+    "email": "wasdwasdwasdwasd05@gmail.com",
+    "phone": "4379851880",
+    "city": "Oakville",
+    "province": "ON",
+    "country": "Canada",
+    "postalCode": "L6M 3C4",
+    "otherCities": [
+      "Mississauga"
+    ],
+    "carMake": "VW",
+    "carModel": "S",
+    "carYear": 2020,
+    "color": "",
+    "seats": 5,
+    "weeklyMileage": 0,
+    "avgDailyDrivingHours": 0,
+    "monthlyRate": 0,
+    "typicalRoutes": "",
+    "availability": "",
+    "vehicleCondition": "",
+    "restrictions": "",
+    "notes": "",
+    "allowLocationTracking": false,
+    "adPlacementOptions": [],
+    "imageUrl": "/uploads/img_d80d2e73e7.png",
+    "socialLinks": {
+      "instagram": "",
+      "tiktok": ""
+    },
+    "mechanic": "orangeautoservices"
   }
 ]

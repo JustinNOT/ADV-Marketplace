@@ -3,191 +3,214 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="robots" content="noindex,nofollow">
-  <title>AdVehicles — Driver Sign Up</title>
+  <title>Driver Submission</title>
 
+  <!-- use your existing theme -->
   <link rel="stylesheet" href="/css/styles.css" />
   <link rel="stylesheet" href="/css/theme.css" />
 </head>
 <body>
+  <!-- top nav -->
   <header class="site-header">
-    <h1><a class="brand" href="/" style="text-decoration:none;color:inherit">AdVehicles</a></h1>
-    <nav>
-      <a href="/browse.html">Browse</a>
-      <a href="/submit.html" class="active">Become a Driver</a>
-    </nav>
+    <div class="container row" style="justify-content:space-between; align-items:center;">
+      <a href="/index.html" class="btn" style="text-decoration:none;">← Back to Home</a>
+      <div></div>
+    </div>
   </header>
 
   <main class="container">
-    <section class="form-card card" style="padding:18px">
-      <h2>Driver Submission</h2>
-      <p class="muted">Upload a clear photo of your vehicle. Max 5MB, image files only.</p>
+    <h1>Driver Submission</h1>
+    <p class="muted">Upload a clear photo of your vehicle. Max 5MB, image files only.</p>
 
-      <form id="driverForm" enctype="multipart/form-data">
-        <!-- Honeypot -->
-        <div style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">
-          <label>Leave this empty:
-            <input type="text" name="website" tabindex="-1" autocomplete="off">
-          </label>
+    <!-- keep id + enctype for existing submit.js -->
+    <form id="driverForm" enctype="multipart/form-data" class="card">
+
+      <!-- Honeypot (hidden) -->
+      <div style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+        <label>Website <input name="website" autocomplete="off" tabindex="-1" /></label>
+      </div>
+
+      <!-- Contact -->
+      <fieldset>
+        <legend>Contact</legend>
+        <div class="grid-3">
+          <div class="field">
+            <label for="name">Full Name *</label>
+            <input id="name" name="name" maxlength="80" required />
+          </div>
+          <div class="field">
+            <label for="email">Email *</label>
+            <input id="email" name="email" type="email" maxlength="254" required />
+          </div>
+          <div class="field">
+            <label for="phone">Phone *</label>
+            <input id="phone" name="phone" maxlength="40" required />
+          </div>
         </div>
 
-        <fieldset>
-          <legend>Contact</legend>
-          <div class="grid-2">
-            <div class="field">
-              <label for="name">Full Name *</label>
-              <input id="name" name="name" required />
-            </div>
-            <div class="field">
-              <label for="email">Email *</label>
-              <input id="email" name="email" type="email" required />
-            </div>
-            <div class="field">
-              <label for="phone">Phone</label>
-              <input id="phone" name="phone" />
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Location</legend>
-          <div class="grid-3">
-            <div class="field">
-              <label for="city">City *</label>
-              <input id="city" name="city" required />
-            </div>
-            <div class="field">
-              <label for="province">Province/State *</label>
-              <input id="province" name="province" required />
-            </div>
-            <div class="field">
-              <label for="country">Country *</label>
-              <input id="country" name="country" required value="Canada" />
-            </div>
-            <div class="field">
-              <label for="postalCode">Postal Code</label>
-              <input id="postalCode" name="postalCode" />
-            </div>
-            <div class="field">
-              <label for="otherCities">Also visits (other cities)</label>
-              <input id="otherCities" name="otherCities" placeholder="Comma-separated e.g., Mississauga, Toronto, Hamilton" />
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Vehicle</legend>
-          <div class="grid-3">
-            <div class="field">
-              <label for="carMake">Make *</label>
-              <input id="carMake" name="carMake" required />
-            </div>
-            <div class="field">
-              <label for="carModel">Model *</label>
-              <input id="carModel" name="carModel" required />
-            </div>
-            <div class="field">
-              <label for="carYear">Year *</label>
-              <input id="carYear" name="carYear" type="number" min="1990" required />
-            </div>
-            <div class="field">
-              <label for="color">Color</label>
-              <input id="color" name="color" />
-            </div>
-            <div class="field">
-              <label for="seats">Seats</label>
-              <input id="seats" name="seats" type="number" min="1" max="9" value="5" />
-            </div>
-            <div class="field">
-              <label for="image">Photo (jpg/png, max 5MB)</label>
-              <input id="image" name="image" type="file" accept="image/*" />
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Driving Patterns</legend>
-          <div class="grid-3">
-            <div class="field">
-              <label for="weeklyMileage">Weekly Mileage *</label>
-              <input id="weeklyMileage" name="weeklyMileage" type="number" min="0" required />
-            </div>
-            <div class="field">
-              <label for="avgDailyDrivingHours">Avg Daily Driving Hours</label>
-              <input id="avgDailyDrivingHours" name="avgDailyDrivingHours" type="number" min="0" step="0.1" />
-            </div>
-            <div class="field">
-              <div class="muted" style="padding:10px;border:1px dashed var(--border-1);border-radius:8px;">
-                <strong>Monthly rate is set by AdVehicles</strong> after we review your submission.
-              </div>
-            </div>
-          </div>
-
+        <!-- NEW: visible mechanic field -->
+        <div class="grid-1">
           <div class="field">
-            <label for="typicalRoutes">Typical Routes</label>
-            <textarea id="typicalRoutes" name="typicalRoutes" rows="2" placeholder="Major roads, neighborhoods, commute pattern"></textarea>
+            <label for="mechanic">Mechanic (ID/slug)</label>
+            <input id="mechanic" name="mechanic" maxlength="64" placeholder="e.g., ABC auto" />
           </div>
+        </div>
+      </fieldset>
+
+      <!-- Location -->
+      <fieldset>
+        <legend>Location</legend>
+        <div class="grid-3">
+          <div class="field">
+            <label for="city">City *</label>
+            <input id="city" name="city" maxlength="40" required />
+          </div>
+          <div class="field">
+            <label for="province">Province/State *</label>
+            <input id="province" name="province" maxlength="40" required />
+          </div>
+          <div class="field">
+            <label for="country">Country *</label>
+            <input id="country" name="country" maxlength="56" value="Canada" required />
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="postalCode">Postal Code</label>
+            <input id="postalCode" name="postalCode" maxlength="12" />
+          </div>
+          <div class="field">
+            <label for="otherCities">Also visits (other cities)</label>
+            <input id="otherCities" name="otherCities" placeholder="Comma-separated e.g., Mississauga, North York" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Vehicle -->
+      <fieldset>
+        <legend>Vehicle</legend>
+        <div class="grid-3">
+          <div class="field">
+            <label for="carMake">Make *</label>
+            <input id="carMake" name="carMake" maxlength="40" required />
+          </div>
+          <div class="field">
+            <label for="carModel">Model *</label>
+            <input id="carModel" name="carModel" maxlength="40" required />
+          </div>
+          <div class="field">
+            <label for="carYear">Year *</label>
+            <input id="carYear" name="carYear" type="number" min="1990" max="2030" required />
+          </div>
+        </div>
+        <div class="grid-3">
+          <div class="field">
+            <label for="color">Color</label>
+            <input id="color" name="color" maxlength="24" />
+          </div>
+          <div class="field">
+            <label for="seats">Seats</label>
+            <input id="seats" name="seats" type="number" min="1" max="9" value="5" />
+          </div>
+          <div class="field">
+            <label for="weeklyMileage">Weekly mileage (km)</label>
+            <input id="weeklyMileage" name="weeklyMileage" type="number" min="0" max="5000" />
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Driving Patterns -->
+      <fieldset>
+        <legend>Driving Patterns</legend>
+        <div class="grid-2">
+          <div class="field">
+            <label for="avgDailyDrivingHours">Average daily driving hours</label>
+            <input id="avgDailyDrivingHours" name="avgDailyDrivingHours" type="number" min="0" max="24" />
+          </div>
+          <div class="field">
+            <label for="typicalRoutes">Typical routes</label>
+            <input id="typicalRoutes" name="typicalRoutes" maxlength="500" />
+          </div>
+        </div>
+        <div class="grid-2">
           <div class="field">
             <label for="availability">Availability</label>
-            <textarea id="availability" name="availability" rows="2" placeholder="Install windows, preferred times"></textarea>
+            <input id="availability" name="availability" maxlength="500" />
           </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Ad Placement & Policies</legend>
-          <div class="grid-3">
-            <div class="field checkbox-group">
-              <label>Ad Placement Options</label>
-              <div id="placementOptions">
-                <label><input type="checkbox" name="placement" value="Rear Window" /> Rear Window</label>
-                <label><input type="checkbox" name="placement" value="Side Doors" /> Side Doors</label>
-                <label><input type="checkbox" name="placement" value="Hood" /> Hood</label>
-              </div>
-            </div>
-            <div class="field">
-              <label for="vehicleCondition">Vehicle Condition</label>
-              <input id="vehicleCondition" name="vehicleCondition" placeholder="Non-smoking, clean, dents, etc." />
-            </div>
-            <div class="field">
-              <label for="restrictions">Ad Restrictions</label>
-              <input id="restrictions" name="restrictions" placeholder="e.g., no adult/political/cannabis" />
-            </div>
-            <div class="field checkbox-inline">
-              <label><input id="allowLocationTracking" name="allowLocationTracking" type="checkbox" /> Allow anonymous mileage/location tracking</label>
-            </div>
+          <div class="field">
+            <label for="vehicleCondition">Vehicle condition</label>
+            <input id="vehicleCondition" name="vehicleCondition" maxlength="120" />
           </div>
-        </fieldset>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="restrictions">Restrictions</label>
+            <input id="restrictions" name="restrictions" maxlength="120" />
+          </div>
+          <div class="field">
+            <label for="monthlyRate">Monthly rate ($) <small>(set later by admin)</small></label>
+            <input id="monthlyRate" name="monthlyRate" type="number" min="0" max="1000" value="0" />
+          </div>
+        </div>
+      </fieldset>
 
-        <fieldset>
-          <legend>Links & Notes</legend>
-          <div class="grid-2">
-            <div class="field">
-              <label for="ig">Instagram</label>
-              <input id="ig" name="ig" placeholder="username or URL" />
-            </div>
-            <div class="field">
-              <label for="tiktok">TikTok</label>
-              <input id="tiktok" name="tiktok" placeholder="username or URL" />
-            </div>
+      <!-- Preferences -->
+      <fieldset>
+        <legend>Ad placement preferences</legend>
+        <div class="row">
+          <label><input type="checkbox" name="placement" value="Rear Window" /> Rear Window</label>
+          <label><input type="checkbox" name="placement" value="Side Doors" /> Side Doors</label>
+          <label><input type="checkbox" name="placement" value="Hood" /> Hood</label>
+        </div>
+      </fieldset>
+
+      <!-- Verification & Notes -->
+      <fieldset>
+        <legend>Verification & Notes</legend>
+        <div class="grid-2">
+          <div class="field">
+            <label for="image">Photo (jpg/png, max 5MB)</label>
+            <input id="image" name="image" type="file" accept="image/*" />
           </div>
           <div class="field">
             <label for="notes">Notes</label>
-            <textarea id="notes" name="notes" rows="2" placeholder="Anything else clients should know"></textarea>
+            <textarea id="notes" name="notes" rows="4" placeholder="Anything we should know?"></textarea>
           </div>
-        </fieldset>
-
-        <div class="form-actions" style="display:flex;gap:10px;flex-wrap:wrap">
-          <button type="submit" class="btn primary">Submit</button>
-          <a class="ghost btn" href="/">Cancel</a>
         </div>
-      </form>
-    </section>
+        <div class="grid-2">
+          <div class="field">
+            <label for="ig">Instagram</label>
+            <input id="ig" name="ig" maxlength="100" placeholder="@handle" />
+          </div>
+          <div class="field">
+            <label for="tiktok">TikTok</label>
+            <input id="tiktok" name="tiktok" maxlength="100" placeholder="@handle" />
+          </div>
+        </div>
+        <div class="row">
+          <label><input type="checkbox" id="allowLocationTracking" name="allowLocationTracking" /> Allow location tracking</label>
+        </div>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" class="btn">Submit</button>
+        <span class="muted">By submitting you agree to be contacted about campaigns.</span>
+      </div>
+    </form>
   </main>
 
-  <footer class="site-footer">
-    <p>© 2025 AdVehicles • <a href="/privacy.html">Privacy</a> • <a href="/terms.html">Terms</a> • <a href="/admin.html">Admin</a></p>
-  </footer>
+  <!-- Auto-fill visible mechanic from query (?m= or ?mechanic=) -->
+  <script>
+    (function () {
+      var mech = document.getElementById('mechanic');
+      if (!mech) return;
+      var params = new URLSearchParams(location.search);
+      var fromQuery = (params.get('mechanic') || params.get('m') || '').trim();
+      if (fromQuery) mech.value = fromQuery;
+    })();
+  </script>
 
+  <!-- your existing submit handler -->
   <script src="/js/submit.js"></script>
 </body>
 </html>

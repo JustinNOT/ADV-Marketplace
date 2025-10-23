@@ -3,69 +3,85 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AdVehicles Admin</title>
-  <meta name="robots" content="noindex,nofollow" />
+  <title>Admin — AdVehicles</title>
   <link rel="stylesheet" href="/css/styles.css" />
+  <link rel="stylesheet" href="/css/theme.css" />
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
-    h1 { margin: 0 0 16px; }
-    .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
-    .card { border:1px solid #ddd; border-radius:12px; padding:16px; margin:10px 0; box-shadow:0 1px 2px rgba(0,0,0,.04);}
-    .muted{ color:#666; font-size:12px; }
-    input,select,button{ padding:8px 10px; border:1px solid #ccc; border-radius:8px; }
-    button{ cursor:pointer; }
-    .danger{ background:#ffe9e9; border-color:#ffbcbc }
-    .ok{ background:#e7ffe9; border-color:#bdf5c7 }
-    .warn{ background:#fff8e1; border-color:#ffe3a3 }
-    .grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:12px; }
-    .pill{ display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #ddd; font-size:12px; margin-right:6px; }
-    .toolbar { position: sticky; top: 0; background: #fff; padding: 8px 0; margin-bottom: 8px; border-bottom: 1px solid #eee; }
-    .login { max-width: 520px; margin: 24px 0; }
-    .debug { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; max-height: 300px; overflow:auto; padding:10px; border:1px solid #eee; border-radius:8px; background:#0b1220; color:#b8ffbd; }
-    img.thumb { width:180px; height:auto; border-radius:8px; border:1px solid #eee; object-fit:cover; }
-    .hidden { display:none !important; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .card { border: 1px solid var(--border-1,#2a2a2a); border-radius: 12px; padding: 14px; margin: 12px 0; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .muted { opacity: .75; }
+    .pill { padding: 2px 8px; border: 1px solid var(--border-1,#2a2a2a); border-radius: 999px; font-size: 12px; }
+    .thumb { width: 180px; max-height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border-1,#2a2a2a); }
+    details pre { white-space: pre-wrap; word-wrap: break-word; }
+    .right { margin-left: auto; }
+    .btn { padding: 8px 12px; border: 1px solid var(--border-1,#2a2a2a); border-radius: 8px; text-decoration: none; cursor: pointer; }
+    .ok { background: var(--ok-bg, transparent); }
+    .warn { background: var(--warn-bg, transparent); }
+    .danger { background: var(--danger-bg, transparent); }
+    #app[hidden], #login[hidden] { display: none !important; }
+    textarea, input { border-radius: 8px; border: 1px solid var(--border-1,#2a2a2a); padding: 8px; }
+    select { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border-1,#2a2a2a); }
+    #debug { margin-top: 10px; max-height: 200px; overflow: auto; }
   </style>
 </head>
 <body>
-  <h1>AdVehicles Admin</h1>
+  <header class="container row" style="justify-content:space-between;align-items:center;">
+    <h1>Admin</h1>
+    <a class="btn" href="/index.html">← Back to Home</a>
+  </header>
 
-  <!-- LOGIN (no <form>, no submit → no refresh) -->
-  <div id="login" class="login">
-    <div class="card">
-      <h3>Sign in</h3>
-      <div class="row">
-        <input id="user" placeholder="Admin user" autocomplete="username" />
-        <input id="pass" placeholder="Admin password" type="password" autocomplete="current-password" />
-      </div>
-      <div class="row" style="margin-top:8px">
-        <label><input type="checkbox" id="remember" /> remember for this tab</label>
-        <button id="signin" type="button">Sign in</button>
-        <span id="loginStatus" class="muted"></span>
-      </div>
-      <div id="loginErr" class="muted" style="color:#b00020;margin-top:8px"></div>
-      <pre id="debug" class="debug" style="margin-top:12px">(debug will appear here)</pre>
+  <!-- LOGIN VIEW -->
+  <section id="login" class="container card">
+    <h3>Sign in</h3>
+    <div class="row">
+      <input id="user" placeholder="Admin user" autocomplete="username" />
+      <input id="pass" type="password" placeholder="Password" autocomplete="current-password" />
+      <label class="row" style="gap:6px; align-items:center;">
+        <input id="remember" type="checkbox" /> remember
+      </label>
+      <button id="signin" class="btn">Sign in</button>
+      <span id="loginErr" class="muted"></span>
     </div>
-  </div>
+    <pre id="debug" class="muted"></pre>
+  </section>
 
-  <!-- APP -->
-  <div id="app" hidden>
-    <div class="toolbar row">
-      <select id="statusFilter">
-        <option value="pending">pending</option>
-        <option value="approved">approved</option>
-        <option value="rejected">rejected</option>
-        <option value="all">all</option>
-      </select>
-      <button id="refresh" type="button">Refresh</button>
-      <span id="count" class="muted"></span>
-      <span style="flex:1"></span>
-      <button id="signout" type="button">Sign out</button>
+  <!-- APP VIEW -->
+  <section id="app" class="container" hidden>
+    <div class="row" style="margin-bottom:10px;">
+      <label>Filter:
+        <select id="statusFilter">
+          <option value="pending" selected>pending</option>
+          <option value="approved">approved</option>
+          <option value="rejected">rejected</option>
+          <option value="all">all</option>
+        </select>
+      </label>
+      <button id="refresh" class="btn">Refresh</button>
+      <span class="right">
+        <button id="signout" class="btn">Sign out</button>
+      </span>
     </div>
 
-    <div id="list" class="grid"></div>
-  </div>
+    <div class="row" style="margin: 6px 0;">
+      <strong id="count"></strong>
+    </div>
 
-  <!-- External JS only (CSP-friendly) -->
+    <!-- DRIVER LIST RENDERED BY admin.js -->
+    <div id="list"></div>
+  </section>
+
+  <!-- Your existing admin logic -->
   <script src="/js/admin.js"></script>
+
+  <!-- Tiny helper to auto-fill the JSON <pre> blocks when admin.js has rendered cards -->
+  <script>
+    // This hook lets admin.js supply raw objects if you ever want.
+    // Not required; admin.js will fill the <pre> itself (see patch below).
+    window.__adv_setDriverJson = function (id, obj) {
+      var pre = document.getElementById('json_' + id);
+      if (pre) pre.textContent = JSON.stringify(obj, null, 2);
+    };
+  </script>
 </body>
 </html>
